@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: gurugammon
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      # Non-sensitive defaults only. Secrets must be set in Render dashboard.
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 20.11.1
