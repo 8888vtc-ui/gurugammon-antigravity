@@ -1,0 +1,249 @@
+/* GameBoard Styles - Classic Backgammon */
+
+.game-board-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xl);
+    padding: var(--spacing-2xl);
+}
+
+.game-board {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    /* Wood texture background */
+    background: linear-gradient(135deg, #5d4037 0%, #3e2723 50%, #5d4037 100%);
+    border: 8px solid var(--color-wood-border);
+    border-radius: var(--radius-lg);
+    box-shadow:
+        var(--shadow-xl),
+        inset 0 0 60px rgba(0, 0, 0, 0.3),
+        0 0 0 2px var(--color-border-gold);
+    padding: var(--board-padding);
+    gap: var(--spacing-md);
+}
+
+.board-half {
+    display: flex;
+    gap: var(--spacing-sm);
+    /* Felt playing surface */
+    background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
+    padding: var(--spacing-md);
+    border-radius: var(--radius-md);
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.quadrant {
+    display: flex;
+    gap: 3px;
+}
+
+.bar {
+    width: var(--bar-width);
+    background: linear-gradient(180deg, var(--color-wood-light) 0%, var(--color-wood-dark) 100%);
+    border-left: 2px solid var(--color-wood-border);
+    border-right: 2px solid var(--color-wood-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    padding: var(--spacing-sm);
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.bar-section {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bar-checkers {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+.board-middle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: linear-gradient(90deg, var(--color-wood-dark) 0%, var(--color-wood-medium) 50%, var(--color-wood-dark) 100%);
+    border-radius: var(--radius-md);
+    border: 2px solid var(--color-wood-border);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Off Sections */
+.off-section {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--color-wood-medium), var(--color-wood-dark));
+    border: 3px solid var(--color-wood-border);
+    border-radius: var(--radius-lg);
+    min-width: 140px;
+    box-shadow: var(--shadow-lg);
+}
+
+.off-white {
+    top: var(--spacing-xl);
+    right: calc(var(--spacing-xl) * -1 - 170px);
+}
+
+.off-black {
+    bottom: var(--spacing-xl);
+    right: calc(var(--spacing-xl) * -1 - 170px);
+}
+
+.off-label {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-border-gold);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    font-family: var(--font-family-serif);
+}
+
+.off-checkers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: center;
+    align-items: center;
+}
+
+.off-count {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-warning);
+}
+
+/* Current Player Indicator */
+.current-player-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md) var(--spacing-xl);
+    background: linear-gradient(135deg, var(--color-wood-medium), var(--color-wood-dark));
+    border: 2px solid var(--color-border-gold);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
+    box-shadow: var(--shadow-lg);
+    font-family: var(--font-family-serif);
+    color: var(--color-border-gold);
+}
+
+.indicator-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-full);
+    border: 2px solid rgba(0, 0, 0, 0.5);
+    animation: pulse 2s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.indicator-dot.white {
+    background: var(--color-checker-white);
+}
+
+.indicator-dot.black {
+    background: var(--color-checker-black);
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: scale(1.1);
+    }
+}
+
+/* Checker Styles */
+.checker {
+    width: var(--checker-size);
+    height: var(--checker-size);
+    border-radius: var(--radius-full);
+    border: 3px solid;
+    box-shadow: var(--shadow-checker);
+    transition: all var(--transition-fast);
+    position: relative;
+}
+
+.checker::before {
+    content: '';
+    position: absolute;
+    top: 20%;
+    left: 20%;
+    right: 20%;
+    bottom: 20%;
+    border-radius: var(--radius-full);
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4), transparent);
+    pointer-events: none;
+}
+
+.checker-white {
+    background: radial-gradient(circle at 30% 30%, #ffffff, #e0e0e0);
+    border-color: var(--color-checker-white-border);
+    box-shadow:
+        var(--shadow-checker),
+        inset 0 2px 4px rgba(255, 255, 255, 0.8),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.checker-black {
+    background: radial-gradient(circle at 30% 30%, #424242, #212121);
+    border-color: var(--color-checker-black-border);
+    box-shadow:
+        var(--shadow-checker),
+        inset 0 2px 4px rgba(255, 255, 255, 0.1),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.checker-small {
+    width: 2rem;
+    height: 2rem;
+    border-width: 2px;
+}
+
+.checker:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+    :root {
+        --checker-size: 2.5rem;
+        --point-width: 3.5rem;
+        --point-height: 10rem;
+    }
+
+    .off-section {
+        min-width: 120px;
+    }
+}
+
+@media (max-width: 1024px) {
+    :root {
+        --checker-size: 2rem;
+        --point-width: 3rem;
+        --point-height: 8rem;
+    }
+
+    .game-board-container {
+        padding: var(--spacing-md);
+    }
+}

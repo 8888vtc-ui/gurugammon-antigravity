@@ -1,6 +1,6 @@
 # 🎲 GammonGuru Backend
 
-Plateforme backgammon pilotée par **Express.js**, **Prisma** et **Supabase**, avec un frontend Vue 3. Le moteur d’IA GNUBG est en cours d’intégration.
+Plateforme backgammon pilotée par **Express.js**, **Prisma** et **Supabase**, avec un frontend React. Le moteur d’IA GNUBG est en cours d’intégration.
 
 > Nouvelle fiche produit stratégique: lisez la présentation complète du produit, du positionnement et de la roadmap dans [PRODUCT_OVERVIEW.md](./PRODUCT_OVERVIEW.md). Pour les garanties de sécurité, consultez [SECURITY.md](./SECURITY.md). Pour une vue d’ensemble technique complète et toujours à jour, référez‑vous au [Guide du projet](./docs/PROJECT_GUIDE.md).
 
@@ -9,7 +9,7 @@ Plateforme backgammon pilotée par **Express.js**, **Prisma** et **Supabase**, a
 | Couche | Technologie | Rôle |
 | --- | --- | --- |
 | Backend API | Express.js (Render) + Netlify Functions | Routes REST `/api/games` + extensions serverless |
-| Frontend | Vue 3 + Vite | SPA consommatrice des endpoints REST |
+| Frontend | React + Vite | SPA consommatrice des endpoints REST |
 | Base de données | Supabase PostgreSQL | Persistance via Prisma Client |
 | IA | GNUBG (intégration en cours) | Suggestions & évaluations de positions |
 

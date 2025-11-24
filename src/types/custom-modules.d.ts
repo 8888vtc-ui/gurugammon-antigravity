@@ -2,20 +2,18 @@
 import type { RequestHandler } from 'express';
 import type { Server } from 'http';
 
-declare module './security-middleware' {
-  export const speedLimit: RequestHandler;
-  export const sanitizeInput: RequestHandler;
-  export const requestSizeLimits: {
-    json: string;
-    urlencoded: string;
-    text: string;
-  };
-  export const securityHeaders: RequestHandler;
-  export const compressionConfig: RequestHandler;
-  export function requestTimeout(timeoutMs?: number): RequestHandler;
-  export const sanitizeError: RequestHandler;
-  export const auditLog: RequestHandler;
-  export const validationRules: Record<string, unknown>;
+declare module 'express-slow-down' {
+  import { RequestHandler } from 'express';
+  interface Options {
+    windowMs?: number;
+    delayAfter?: number;
+    delayMs?: number;
+    maxDelayMs?: number;
+    skip?: (req: any, res: any) => boolean;
+    onLimitReached?: (req: any, res: any, options: any) => void;
+  }
+  function slowDown(options: Options): RequestHandler;
+  export = slowDown;
 }
 
 declare module './cache-service' {

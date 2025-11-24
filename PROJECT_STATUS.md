@@ -6,10 +6,10 @@
   - API Express.js + Prisma sur Supabase/PostgreSQL (endpoints jeux, tournois, IA GNUBG, stats, etc.).
   - Authentification JWT (access/refresh tokens) et WebSockets temps réel (partie, matchmaking, tournois, notifications).
   - Monitoring Prometheus exposé via `/metrics`.
-- **Frontend Vue 3 (SPA)**
-  - Application monopage (Vite + Vue 3) avec plateau `GameBoard.vue` et vues multiplayer (`MultiplayerGameView.vue`, `GameChat.vue`).
-  - `GameBoard.vue` connecté à bgammon pour afficher `board`/`dice`/`moves` issus du serveur.
-  - `MultiplayerGameView.vue` intègre un bouton 🌐 **bgammon** pour rejoindre une partie de test.
+- **Frontend React (SPA)**
+  - Application monopage (Vite + React) avec plateau `GameBoard.tsx` et vues multiplayer (`MultiplayerGameView.tsx`, `GameChat.tsx`).
+  - `GameBoard.tsx` connecté à bgammon pour afficher `board`/`dice`/`moves` issus du serveur.
+  - `MultiplayerGameView.tsx` intègre un bouton 🌐 **bgammon** pour rejoindre une partie de test.
 - **Serveur bgammon (Go)**
   - Script : `npm run dev:bgammon` lance `bgammon-server/main.go`.
   - Écoute des connexions WebSocket sur `VITE_BGAMMON_WS_URL` (par ex. `ws://localhost:8080` en dev).
@@ -20,7 +20,7 @@
   - Typage strict (`BgammonState`, `BgammonEventHandler`) et centralisation du parsing JSON (`parseBgammonPayload`).
   - Accès typé aux variables d’environnement (`import.meta.env.VITE_BGAMMON_WS_URL`), suppression de `window.location`.
   - Gestion des erreurs WebSocket (log structuré dans `onerror`, exception si envoi alors que le socket n’est pas ouvert).
-- **Intégration dans GameBoard.vue**
+- **Intégration dans GameBoard.tsx**
   - Le plateau lit `state.board` via `bgammonState` et `mapBoardToCheckers` pour afficher les pions.
   - Les dés affichés proviennent de `state.dice` bgammon.
   - Un bloc debug affiche également `bgammonState.dice` et `bgammonState.moves`.
@@ -29,7 +29,7 @@
   - `makeMove(move)` → envoie `bgammonClient.move(["from-to"])` et attend la mise à jour du plateau via bgammon.
   - `endTurn()` → envoie `bgammonClient.confirmOk()` pour signaler la fin de tour au serveur.
 - **Vue multijoueur + bouton bgammon**
-  - `MultiplayerGameView.vue` contient un bouton 🌐 **bgammon** qui :
+  - `MultiplayerGameView.tsx` contient un bouton 🌐 **bgammon** qui :
     - connecte l’utilisateur courant à bgammon si nécessaire,
     - appelle `bgammonClient.joinMatch('test-game')`,
     - loggue `Joined bgammon game as <username>` pour debug.

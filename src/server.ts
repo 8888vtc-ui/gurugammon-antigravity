@@ -97,7 +97,7 @@ const express = (expressModule as unknown as { default?: typeof expressModule })
   (expressModule as unknown as typeof expressModule);
 
 // Import JS modules with require to avoid TypeScript module resolution issues
-const {
+import {
   speedLimit,
   sanitizeInput,
   requestSizeLimits,
@@ -105,7 +105,7 @@ const {
   compressionConfig,
   requestTimeout,
   auditLog
-} = require('./security-middleware');
+} from './security-middleware';
 
 const { cacheService } = require('./cache-service');
 

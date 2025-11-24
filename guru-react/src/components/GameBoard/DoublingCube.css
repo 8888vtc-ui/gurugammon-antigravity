@@ -1,0 +1,74 @@
+/* Doubling Cube Styles - Classic Backgammon */
+
+.doubling-cube {
+    width: 4rem;
+    height: 4rem;
+    background: radial-gradient(circle at 30% 30%, #ffd700, #d4af37);
+    border-radius: var(--radius-lg);
+    border: 3px solid var(--color-wood-border);
+    box-shadow:
+        var(--shadow-xl),
+        inset 0 3px 6px rgba(255, 255, 255, 0.4),
+        inset 0 -3px 6px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(212, 175, 55, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition-base);
+    position: relative;
+}
+
+.doubling-cube::before {
+    content: '';
+    position: absolute;
+    top: 10%;
+    left: 10%;
+    right: 40%;
+    bottom: 40%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.6), transparent);
+    border-radius: var(--radius-full);
+    pointer-events: none;
+}
+
+.doubling-cube:hover {
+    transform: scale(1.05) rotate(5deg);
+    box-shadow:
+        var(--shadow-xl),
+        0 0 30px rgba(212, 175, 55, 0.5);
+}
+
+.cube-face {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cube-value {
+    font-size: 2rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-wood-dark);
+    text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
+    font-family: var(--font-family-serif);
+}
+
+.cube-owned {
+    animation: cubeGlow 2s ease-in-out infinite;
+}
+
+@keyframes cubeGlow {
+
+    0%,
+    100% {
+        box-shadow:
+            var(--shadow-xl),
+            0 0 20px rgba(212, 175, 55, 0.3);
+    }
+
+    50% {
+        box-shadow:
+            var(--shadow-xl),
+            0 0 30px rgba(212, 175, 55, 0.6);
+    }
+}

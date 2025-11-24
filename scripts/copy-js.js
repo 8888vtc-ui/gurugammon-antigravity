@@ -1,14 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const filesToCopy = [
-  'security-middleware.js',
-  'cache-service.js',
-  'websocket-server.js',
-  'backgammon-engine.js',
+'cache-service.js',
   'backgammon-coach.js',
   'language-manager.js'
-];
 
 const utilsFilesToCopy = [
   path.join('utils', 'logger.js')
