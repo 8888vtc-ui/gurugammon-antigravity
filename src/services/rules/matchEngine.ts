@@ -90,15 +90,20 @@ export function applyPointResult(
   let finished = false;
 
   if (updatedMatch) {
+    const preCrawford = evaluateCrawfordState({
+      rules: updatedMatch.rules,
+      matchLength: updatedMatch.length,
+      whiteScore: game.whiteScore ?? 0,
+      blackScore: game.blackScore ?? 0,
+      match: updatedMatch
+    });
+
+    if (updatedMatch.rules.crawford && preCrawford.active && !updatedMatch.crawfordUsed) {
+      updatedMatch = { ...updatedMatch, crawfordUsed: true };
+    }
+
     const winnerScore = winner === 'white' ? updatedGame.whiteScore : updatedGame.blackScore;
     const matchPoint = updatedMatch.length;
-
-    if (updatedMatch.rules.crawford && !updatedMatch.crawfordUsed) {
-      const preScore = winner === 'white' ? game.whiteScore : game.blackScore;
-      if (preScore === matchPoint - 1) {
-        updatedMatch = { ...updatedMatch, crawfordUsed: true };
-      }
-    }
 
     if (winnerScore >= matchPoint) {
       updatedMatch = { ...updatedMatch, state: 'FINISHED' };

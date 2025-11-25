@@ -868,6 +868,13 @@ export class GameService {
       });
     }
 
+    const playerBarCount =
+      playerColor === 'white' ? currentState.board.whiteBar : currentState.board.blackBar;
+
+    if (playerBarCount > 0 && moveRequest.from !== 24) {
+      throw new Error('You must enter all checkers from the bar before moving others');
+    }
+
     // Créer l'objet mouvement
     const move: Move = {
       from: moveRequest.from,

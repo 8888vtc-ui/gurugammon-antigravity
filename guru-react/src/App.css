@@ -72,10 +72,77 @@
 	padding: var(--spacing-2xl) 0;
 }
 
+.game-layout {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--spacing-xl);
+}
+
+.game-chat-wrapper {
+	flex: 0 0 320px;
+}
+
 .loading-state {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	gap: var(--spacing-xl);
 	padding: var(--spacing-3xl);
+}
+
+/* Responsive header & layout */
+@media (max-width: 768px) {
+	.app-header {
+		padding: var(--spacing-md) 0;
+	}
+
+	.app-title {
+		font-size: var(--font-size-2xl);
+	}
+
+	.header-actions {
+		flex-wrap: wrap;
+		justify-content: flex-end;
+		gap: var(--spacing-sm);
+	}
+
+	.app-main {
+		padding: var(--spacing-xl) 0;
+	}
+
+	.game-layout {
+		flex-direction: column;
+		gap: var(--spacing-lg);
+	}
+
+	.game-chat-wrapper {
+		width: 100%;
+	}
+}
+
+@media (max-width: 480px) {
+	.app-header {
+		padding: var(--spacing-sm) 0;
+	}
+
+	.app-title {
+		font-size: var(--font-size-xl);
+	}
+
+	.status-badge {
+		display: none;
+	}
+
+	.header-actions {
+		width: 100%;
+		justify-content: space-between;
+	}
+
+	.app-main {
+		padding: var(--spacing-lg) 0;
+	}
+
+	.game-chat-wrapper {
+		flex: 1;
+	}
 }

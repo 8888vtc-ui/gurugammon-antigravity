@@ -246,4 +246,68 @@
     .game-board-container {
         padding: var(--spacing-md);
     }
+
+    .game-board {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --checker-size: 1.7rem;
+        --point-width: 2.4rem;
+        --point-height: 6.5rem;
+        --board-padding: var(--spacing-sm);
+    }
+
+    .game-board-container {
+        padding: var(--spacing-sm);
+    }
+
+    .game-board {
+        border-width: 6px;
+    }
+
+    .board-half {
+        padding: var(--spacing-sm);
+    }
+
+    .board-middle {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+
+    .off-section {
+        position: static;
+        margin-top: var(--spacing-md);
+        min-width: auto;
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
+    .off-white,
+    .off-black {
+        top: auto;
+        right: auto;
+        bottom: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    :root {
+        --checker-size: 1.4rem;
+        --point-width: 2.1rem;
+        --point-height: 5.6rem;
+    }
+
+    .game-board-container {
+        padding: var(--spacing-xs);
+        gap: var(--spacing-md);
+    }
+
+    .current-player-indicator {
+        flex-direction: row;
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--font-size-sm);
+    }
 }

@@ -1,0 +1,46 @@
+/* Ajouts pour l'interactivité */
+.point {
+  position: relative;
+  transition: opacity 0.2s;
+}
+
+.point-selected .point-triangle {
+  filter: drop-shadow(0 0 8px #ffd700);
+  z-index: 10;
+}
+
+.point-valid-move .point-triangle {
+  filter: drop-shadow(0 0 5px #4ade80);
+  opacity: 0.9;
+}
+
+.point-valid-move:hover .point-triangle {
+  filter: drop-shadow(0 0 10px #22c55e);
+  cursor: pointer;
+}
+
+.checker {
+  transition: transform 0.2s ease-out;
+}
+
+/* Highlight du dernier coup joué */
+.point-last-from .point-triangle {
+  outline: 2px solid #f97316; /* orange */
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.8);
+}
+
+.point-last-to .point-triangle {
+  outline: 2px solid #3b82f6; /* bleu */
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.9);
+}
+
+/* Highlight du coup suggéré par l'IA */
+.point-hint-from .point-triangle {
+  outline: 2px dashed #22c55e; /* vert clair */
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.85);
+}
+
+.point-hint-to .point-triangle {
+  outline: 2px solid #22c55e; /* vert clair plein */
+  box-shadow: 0 0 14px rgba(34, 197, 94, 0.95);
+}

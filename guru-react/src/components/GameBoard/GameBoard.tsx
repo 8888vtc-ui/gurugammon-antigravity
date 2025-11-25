@@ -1,8 +1,11 @@
 import { type FC } from 'react';
+import { LayoutGroup, motion } from 'framer-motion';
+import { Checker } from './Checker.tsx';
 import './GameBoard.css';
 import './Point.css';
 import './Dice.css';
 import './DoublingCube.css';
+import './Interactive.css';
 
 export interface GameBoardProps {
     board: number[];
@@ -11,18 +14,33 @@ export interface GameBoardProps {
     whiteOff: number;
     blackOff: number;
     dice: [number, number];
+    /** Indique si une animation de roulage de dés est en cours. */
+    isRollingDice?: boolean;
     cubeValue: number;
     cubeOwner: string | null;
     currentPlayer: 'white' | 'black';
+    /** Dernier coup joué (indices 0-23), utilisé pour le surlignage visuel. */
+    lastMove?: { from: number; to: number } | null;
+    /** Index sélectionné localement (mode jeu local), pour l'UI. */
+    selectedPoint?: number | null;
+    /** Destinations valides calculées localement (mode jeu local), pour l'UI. */
+    validMoves?: number[];
+    /** Coup suggéré par l'IA à surligner sur le plateau. */
+    hintMove?: { from: number; to: number } | null;
     onPointClick?: (pointIndex: number) => void;
 }
 
 export const GameBoard: FC<GameBoardProps> = ({
     board,
     dice,
+    isRollingDice,
     cubeValue,
-    cubeOwner,
-    currentPlayer
+    currentPlayer,
+    lastMove,
+    hintMove,
+    selectedPoint,
+    validMoves,
+    onPointClick
 }) => {
     // Split board into quadrants for proper backgammon layout
     // From white's perspective (bottom):
@@ -35,21 +53,61 @@ export const GameBoard: FC<GameBoardProps> = ({
     const topLeft = board.slice(12, 18).reverse(); // Points 13-18 (reversed for display)
     const topRight = board.slice(18, 24).reverse(); // Points 19-24 (reversed for display)
 
-    // Render a simple point (triangle) directly
+    // Render a point (triangle) and its stack of animated checkers
     const renderPoint = (checkerCount: number, pointNumber: number, direction: 'up' | 'down', colorClass: 'light' | 'dark') => {
+        // Les points dans le tableau board sont 0-indexés (0-23), mais pointNumber est 1-24
+        // L'index réel dans le tableau board[]
+        const boardIndex = pointNumber - 1; 
+        
+        const isSelected = selectedPoint === boardIndex;
+        const isValidMove = Array.isArray(validMoves) && validMoves.includes(boardIndex);
+        
+        const isLastFrom = lastMove && lastMove.from === boardIndex;
+        const isLastTo = lastMove && lastMove.to === boardIndex;
+        const isHintFrom = hintMove && hintMove.from === boardIndex;
+        const isHintTo = hintMove && hintMove.to === boardIndex;
+
+        const player = checkerCount > 0 ? 'white' : 'black';
+        const absoluteCount = Math.abs(checkerCount);
+        
+        const pointClasses = [
+            'point',
+            `point-${direction}`,
+            `point-${colorClass}`,
+            isSelected ? 'point-selected' : '',
+            isValidMove ? 'point-valid-move' : '',
+            isLastFrom ? 'point-last-from' : '',
+            isLastTo ? 'point-last-to' : '',
+            isHintFrom ? 'point-hint-from' : '',
+            isHintTo ? 'point-hint-to' : ''
+        ]
+            .filter(Boolean)
+            .join(' ');
+        
         return (
-            <div key={`point-${pointNumber}`} className={`point point-${direction} point-${colorClass}`}>
+            <div 
+                key={`point-${pointNumber}`} 
+                className={pointClasses}
+                onClick={() => onPointClick?.(boardIndex)}
+                style={{ cursor: 'pointer' }}
+            >
                 <div className="point-triangle">
                     <div className="point-number">{pointNumber}</div>
                 </div>
-                {checkerCount !== 0 && (
+                {absoluteCount > 0 && (
                     <div className="checkers-stack">
-                        {Array.from({ length: Math.min(Math.abs(checkerCount), 5) }).map((_, i) => (
-                            <div
-                                key={`checker-${i}`}
-                                className={`checker ${checkerCount > 0 ? 'checker-white' : 'checker-black'}`}
+                        {Array.from({ length: Math.min(absoluteCount, 5) }).map((_, i) => (
+                            <Checker
+                                key={`checker-${boardIndex}-${i}`}
+                                player={player}
+                                position={{ point: boardIndex, stack: i }}
                             />
                         ))}
+                        {absoluteCount > 5 && (
+                            <div className={`checker-count checker-count-${player}`}>
+                                +{absoluteCount - 5}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -91,20 +149,28 @@ export const GameBoard: FC<GameBoardProps> = ({
             );
         };
 
+        const valuesToRender = dice.length > 0 ? dice : [0, 0];
+
         return (
             <div className="dice-container">
-                {dice.map((value, index) => (
-                    <div key={`die-${index}`} className="die">
-                        {renderPips(value)}
-                    </div>
+                {valuesToRender.map((value, index) => (
+                    <motion.div
+                        key={`die-${index}`}
+                        className="die"
+                        animate={isRollingDice ? { rotate: [0, 25, -25, 0], y: [0, -6, 0, -3] } : { rotate: 0, y: 0 }}
+                        transition={isRollingDice ? { duration: 0.4, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
+                    >
+                        {isRollingDice ? <div className="die-face" /> : renderPips(value)}
+                    </motion.div>
                 ))}
             </div>
         );
     };
 
     return (
-        <div className="game-board-container">
-            <div className="game-board">
+        <LayoutGroup>
+            <div className="game-board-container">
+                <div className="game-board">
                 {/* Top Half */}
                 <div className="board-half board-top">
                     {/* Top Left Quadrant (Points 13-18) */}
@@ -162,6 +228,6 @@ export const GameBoard: FC<GameBoardProps> = ({
                 </span>
             </div>
         </div>
+    </LayoutGroup>
     );
 };
-

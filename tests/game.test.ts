@@ -11,7 +11,7 @@ jest.mock('../src/server', () => {
 });
 
 import gamesRouter from '../src/routes/games';
-import { AIService } from '../src/services/aiService';
+import { AIService, QuotaExceededError } from '../src/services/aiService';
 import { setTestUser } from './__mocks__/authMiddleware';
 import { makeGameState } from './utils/fixtures';
 

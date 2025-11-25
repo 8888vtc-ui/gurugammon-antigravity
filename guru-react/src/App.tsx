@@ -1,31 +1,79 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { GameBoard } from './components/GameBoard/GameBoard'
+import { GameChat } from './components/GameChat/GameChat'
+import { useBackgammon } from './hooks/useBackgammon'
+import { soundService } from './services/soundService'
 
 function App() {
-  const [status, setStatus] = useState<string>('Ready to play')
-  const [isConnected, setIsConnected] = useState(false)
+  const [isConnected] = useState(false)
+  const [isRollingDice, setIsRollingDice] = useState(false)
+  const rollStartRef = useRef<number | null>(null)
+  const lastMoveRef = useRef<{ from: number; to: number } | null>(null)
+  const lastWinnerRef = useRef<string | null>(null)
+  
+  // Hook de jeu local
+  const { gameState, rollDice, handlePointClick, requestHint, error } = useBackgammon();
+  // TODO: Connect to local backend WebSocket at ws://localhost:3000
+  // Pour l'instant, mode local autonome
 
-  useEffect(() => {
-    // TODO: Connect to local backend WebSocket at ws://localhost:3000
-    setStatus('Offline mode - showing demo board')
-    setIsConnected(false)
-  }, [])
+  const handleRollClick = async () => {
+    if (isRollingDice || gameState.dice.length > 0) return
 
-  // Official backgammon starting position (standard)
-  // Positive = WHITE checkers, Negative = BLACK checkers
-  // Points 1-24 from White's perspective
-  const boardArray = [
-    2, 0, 0, 0, 0, 5,   // Points 1-6: 2 white on 1, 5 white on 6
-    0, 3, 0, 0, 0, -5,  // Points 7-12: 3 white on 8, 5 black on 12
-    5, 0, 0, 0, -3, 0,  // Points 13-18: 5 white on 13, 3 black on 17
-    -5, 0, 0, 0, 0, -2   // Points 19-24: 5 black on 19, 2 black on 24
-  ];
+    setIsRollingDice(true)
+    rollStartRef.current = Date.now()
 
-  const handlePointClick = (pointIndex: number) => {
-    console.log('Point clicked:', pointIndex)
-    // TODO: Implement move logic
+    soundService.playDiceRoll()
+
+    try {
+      await rollDice()
+    } catch (err) {
+      // En cas d'erreur, arrêter rapidement l'animation
+      setIsRollingDice(false)
+      rollStartRef.current = null
+      throw err
+    }
   }
+
+  // Arrêter l'animation une fois que les dés ont été mis à jour
+  useEffect(() => {
+    if (!isRollingDice) return
+    if (gameState.dice.length === 0) return
+
+    const startedAt = rollStartRef.current ?? Date.now()
+    const elapsed = Date.now() - startedAt
+    const remaining = Math.max(0, 1000 - elapsed)
+
+    const timeout = setTimeout(() => {
+      setIsRollingDice(false)
+      rollStartRef.current = null
+    }, remaining)
+
+    return () => clearTimeout(timeout)
+  }, [isRollingDice, gameState.dice])
+
+  // Son de placement de pion (nouveau lastMove)
+  useEffect(() => {
+    const last = gameState.lastMove
+    if (!last) return
+
+    const prev = lastMoveRef.current
+    if (!prev || prev.from !== last.from || prev.to !== last.to) {
+      soundService.playMove()
+      lastMoveRef.current = last
+    }
+  }, [gameState.lastMove])
+
+  // Son de fin de partie
+  useEffect(() => {
+    const winner = gameState.winner
+    if (!winner) return
+
+    if (lastWinnerRef.current === winner) return
+
+    soundService.playGameEnd(winner)
+    lastWinnerRef.current = winner
+  }, [gameState.winner])
 
   return (
     <div className="app">
@@ -36,12 +84,29 @@ function App() {
             <h1 className="app-title text-glow-purple">GuruGammon</h1>
             <div className={`status-badge ${isConnected ? 'status-connected' : 'status-connecting'}`}>
               <div className="status-dot" />
-              <span>{status}</span>
+              <span>{isConnected ? 'Online' : 'Offline Mode (Local Play)'}</span>
             </div>
           </div>
           <div className="header-actions">
             <button className="btn btn-ghost">Settings</button>
-            <button className="btn btn-primary">New Game</button>
+            <button 
+                className="btn btn-primary"
+                onClick={handleRollClick}
+                disabled={isRollingDice || gameState.dice.length > 0}
+            >
+                {isRollingDice
+                  ? 'Rolling...'
+                  : gameState.dice.length > 0
+                  ? `Dice: ${gameState.dice.join('-')}`
+                  : 'Roll Dice'}
+            </button>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={() => requestHint?.()}
+            >
+              Hint (IA)
+            </button>
           </div>
         </div>
       </header>
@@ -49,18 +114,37 @@ function App() {
       {/* Main Content */}
       <main className="app-main">
         <div className="container">
-          <GameBoard
-            board={boardArray}
-            whiteBar={0}
-            blackBar={0}
-            whiteOff={0}
-            blackOff={0}
-            dice={[0, 0]}
-            cubeValue={1}
-            cubeOwner={null}
-            currentPlayer="white"
-            onPointClick={handlePointClick}
-          />
+          <div className="game-info-bar" style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', color: 'white' }}>
+             <span>Current Turn: <strong>{gameState.currentPlayer.toUpperCase()}</strong></span>
+             {gameState.winner && <span style={{color: '#4ade80'}}>WINNER: {gameState.winner.toUpperCase()}!</span>}
+          </div>
+          {error && (
+            <div style={{ marginBottom: '0.75rem', color: '#f97316' }}>
+              {error}
+            </div>
+          )}
+          <div className="game-layout">
+            <GameBoard
+              board={gameState.board.points}
+              whiteBar={gameState.board.whiteBar}
+              blackBar={gameState.board.blackBar}
+              whiteOff={gameState.board.whiteOff}
+              blackOff={gameState.board.blackOff}
+              dice={gameState.dice as [number, number]}
+              isRollingDice={isRollingDice}
+              cubeValue={1}
+              cubeOwner={null}
+              currentPlayer={gameState.currentPlayer}
+              lastMove={gameState.lastMove ?? undefined}
+              hintMove={gameState.hintMove ?? undefined}
+              selectedPoint={gameState.selectedPoint}
+              validMoves={gameState.validMoves}
+              onPointClick={handlePointClick}
+            />
+            <div className="game-chat-wrapper">
+              <GameChat roomId={"local-room"} />
+            </div>
+          </div>
         </div>
       </main>
     </div>
