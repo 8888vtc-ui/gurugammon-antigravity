@@ -78,6 +78,13 @@
 	gap: var(--spacing-xl);
 }
 
+.game-side-panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing-md);
+	flex: 0 0 320px;
+}
+
 .game-chat-wrapper {
 	flex: 0 0 320px;
 }
@@ -113,6 +120,11 @@
 	.game-layout {
 		flex-direction: column;
 		gap: var(--spacing-lg);
+	}
+
+	.game-side-panel {
+		width: 100%;
+		flex: 1;
 	}
 
 	.game-chat-wrapper {

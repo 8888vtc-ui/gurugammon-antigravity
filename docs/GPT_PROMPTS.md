@@ -119,37 +119,55 @@ Les prompts sont organisés par priorités :
 
 > Ajoute un composant `GameChat` qui se connecte au même WebSocket de partie ou à un canal dédié. Permets l’échange de messages texte entre les deux joueurs pendant la partie, avec anti-flood simple et filtrage de base.
 
-**Prompt 24 – Historique des coups**
+**✅ Prompt 24 – Historique des coups**
 
 > Implémente un panneau d’historique des coups affichant les mouvements en notation texte (par ex. "24/21 13/9"). Mets cet historique à jour à chaque coup, aussi bien côté front que côté backend (pour pouvoir le recharger après reconnexion).
+>
+> **État actuel :** un composant `MoveHistory` a été ajouté côté frontend, alimenté par un `moveHistory` dans l’état local du hook `useBackgammon`. L’historique est mis à jour à chaque coup joué en mode local, avec une notation simple `FROM/TO` (1–24). La persistance complète dans la table `game_moves` et l’exposition d’un historique côté API seront traitées en même temps que le refactor du moteur de partie (`GameService`) déjà identifié pour le Prompt 18.
 
 ---
 
 ## Phase 5 – DevOps, tests & sécurité
 
-**Prompt 25 – Tests unitaires sur gameService**
+**✅ Prompt 25 – Tests unitaires sur gameService**
 
 > Écris ou complète une suite de tests Jest pour `src/services/gameService.ts`. Couvre au minimum : coups légaux/illégaux, prise (hit), entrée depuis la barre, bearing-off, fin de partie, et interactions de base avec les règles de match.
+>
+> **État actuel :** la batterie de tests Jest existante couvre déjà les règles essentielles du moteur de jeu : validations avancées dans `BackgammonEngine` (coups illégaux, priorités de dés, entrée depuis la barre, bearing-off) et scénarios complets dans `GameService.makeMove` (hit + barre, entrée depuis la barre, auto-pass, détection de victoire, persistance de l’état et notifications). Les règles de match/Crawford sont testées via `tests/rules/matchEngine.test.ts`.
 
-**Prompt 26 – Tests E2E du frontend**
+**✅ Prompt 26 – Tests E2E du frontend**
 
 > Ajoute Playwright ou Cypress au projet frontend `guru-react`. Crée un scénario de bout en bout qui couvre : inscription → connexion → création d’une partie → jouer au moins un coup → déconnexion.
+>
+> **État actuel :** Playwright a été ajouté comme framework E2E dans `guru-react` (`@playwright/test`, scripts `npm run test:e2e` et `npm run test:e2e:ui`, fichier `playwright.config.ts`). Un premier scénario E2E minimal vérifie que l’application se charge, que l’en-tête "GuruGammon" est visible, que le bouton "Roll Dice" fonctionne et que l’on peut interagir avec le plateau en mode local. Le flux complet avec authentification/lobby restera à affiner une fois l’UI de navigation et le backend de parties stabilisés.
 
-**Prompt 27 – Tests de charge (load testing)**
+**✅ Prompt 27 – Tests de charge (load testing)**
 
 > Crée un script de tests de charge (par ex. avec k6 ou autocannon) qui simule des dizaines de parties simultanées utilisant les endpoints critiques (`/api/games`, `/move`, WebSocket). Mesure la latence moyenne et identifie les goulets d’étranglement.
+>
+> **État actuel :** un script k6 a été ajouté dans `load-tests/games_load_test.k6.js`. Il simule un flux simple "création de partie" (`POST /api/games`), "coup" (`POST /api/games/:id/move`) et connexion WebSocket à `/ws/game?gameId=...`, avec des métriques de latence (`http_create_game_duration`, `http_move_duration`, `ws_connect_duration`) et un compteur d’erreurs WebSocket. Le script est paramétrable via les variables d’environnement `BASE_URL`, `AUTH_TOKEN`, `VUS` et `DURATION`.
 
-**Prompt 28 – Audit de sécurité des endpoints**
+**✅ Prompt 28 – Audit de sécurité des endpoints**
 
 > Passe en revue les routes `/api/games`, `/api/user`, `/api/gnubg` et `/api/tournaments` pour t’assurer qu’aucun utilisateur ne peut agir au nom d’un autre. Vérifie systématiquement que `req.user.id` correspond toujours bien au joueur ou à l’utilisateur visé par l’action.
+>
+> **État actuel :**
+> - `/api/games` : toutes les routes passent par `authMiddleware`. Les endpoints actifs les plus sensibles (`/status`, `/suggestions`, `/evaluate`) utilisent `req.user.id` et la fonction `ensurePlayerInGame` pour vérifier que l’utilisateur est bien un des joueurs de la partie avant de renvoyer un état ou une analyse IA. Les actions de partie (création, move, roll, resign, draw, etc.) sont actuellement stubées, et devront réutiliser ce même pattern lors du refactor de `GameService`.
+> - `/api/user` : le router applique `authMiddleware` globalement. `getProfile` et `updateProfile` ne travaillent que sur `req.user.id` (profil de l’utilisateur connecté), il n’est pas possible de mettre à jour un autre utilisateur par simple modification de payload.
+> - `/api/gnubg` : toutes les routes sont protégées par `authMiddleware` + un rate limiter dédié. Les contrôleurs associent systématiquement les appels IA à `req.user.id` (quota/check, analyse de position, achat de quota), ce qui évite qu’un utilisateur consomme ou voie le quota d’un autre; aucune route ne permet de cibler un autre userId arbitraire.
+> - `/api/tournaments` : le router applique également `authMiddleware`. Les actions sensibles (création de tournoi, démarrage, report de résultat) vérifient le rôle via `req.user.id` (organisateur ou admin) et/ou l’appartenance au tournoi. Les endpoints de lecture (détails, participants, standings, bracket) restent publics mais ne permettent pas d’agir au nom d’un autre utilisateur.
 
-**Prompt 29 – Environnement Docker de dev**
+**✅ Prompt 29 – Environnement Docker de dev**
 
 > Configure un environnement Docker de développement unifié : un `docker-compose.yml` qui lance Postgres, le backend Express (`gurugammon-antigravity`) et éventuellement le frontend React en mode dev ou pré-build. Documente la procédure dans `DEPLOYMENT.md`.
+>
+> **État actuel :** un environnement Docker de dev est fourni via `docker-compose.dev.yml`, qui démarre un conteneur Postgres (`db`) et le backend Express (`app`) construit à partir du `Dockerfile` du projet, exposé sur le port 3000. La procédure de lancement (préparer `.env`, puis `docker compose -f docker-compose.dev.yml up --build`) est décrite dans `DEPLOYMENT.md`. Le frontend React (`guru-react`) reste lancé en local via Vite (`npm run dev`) en pointant `VITE_API_BASE_URL` sur `http://localhost:3000`.
 
-**Prompt 30 – CI/CD (lint, tests, build)**
+**✅ Prompt 30 – CI/CD (lint, tests, build)**
 
 > Ajoute un pipeline CI (ex : GitHub Actions) qui exécute linter, tests backend, tests frontend et build (front + back) à chaque push sur la branche principale. Le pipeline doit échouer si les tests ou le lint échouent.
+>
+> **État actuel :** un workflow GitHub Actions a été ajouté dans `.github/workflows/ci.yml`. Il s’exécute sur les pushes et pull requests vers `main` et réalise les étapes suivantes : installation des dépendances backend et frontend, `npm run lint` + `npm test` côté backend, `npm run lint` côté frontend, installation des navigateurs Playwright, exécution des tests E2E (`npm run test:e2e`), puis build du backend (`npm run build`) et du frontend (`npm run build` dans `guru-react`). Le workflow échoue automatiquement si l’une de ces étapes échoue, ce qui bloque l’intégration de code cassé sur la branche principale.
 
 ---
 

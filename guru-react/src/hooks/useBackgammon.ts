@@ -48,7 +48,8 @@ const createLocalInitialState = (): GameState => ({
   validMoves: [],
   winner: null,
   lastMove: null,
-  hintMove: null
+  hintMove: null,
+  moveHistory: []
 });
 
 const determineWinnerFromBoard = (board: BackendBoardState): 'white' | 'black' | null => {
@@ -82,7 +83,8 @@ const mapBackendGameToLocal = (backend: BackendGameState): GameState => {
     validMoves: [],
     winner: determineWinnerFromBoard(board),
     lastMove: null,
-    hintMove: null
+    hintMove: null,
+    moveHistory: []
   };
 };
 
@@ -319,6 +321,10 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
 
           const nextPlayer = newDice.length === 0 ? (currentPlayer === 'white' ? 'black' : 'white') : currentPlayer;
 
+          const fromIndex = selectedPoint;
+          const toIndex = pointIndex;
+          const notation = `${fromIndex + 1}/${toIndex + 1}`;
+
           return {
             ...prev,
             board: { ...board, points: newPoints },
@@ -326,7 +332,16 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
             currentPlayer: nextPlayer,
             selectedPoint: null,
             validMoves: [],
-            lastMove: { from: selectedPoint, to: pointIndex }
+            lastMove: { from: selectedPoint, to: pointIndex },
+            moveHistory: [
+              ...prev.moveHistory,
+              {
+                player: currentPlayer,
+                from: fromIndex,
+                to: toIndex,
+                notation
+              }
+            ]
           };
         }
 

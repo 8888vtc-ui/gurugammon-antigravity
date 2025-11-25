@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { GameBoard } from './components/GameBoard/GameBoard'
 import { GameChat } from './components/GameChat/GameChat'
+import { MoveHistory } from './components/MoveHistory/MoveHistory'
 import { useBackgammon } from './hooks/useBackgammon'
 import { soundService } from './services/soundService'
 
@@ -141,8 +142,11 @@ function App() {
               validMoves={gameState.validMoves}
               onPointClick={handlePointClick}
             />
-            <div className="game-chat-wrapper">
-              <GameChat roomId={"local-room"} />
+            <div className="game-side-panel">
+              <MoveHistory moves={gameState.moveHistory} />
+              <div className="game-chat-wrapper">
+                <GameChat roomId={"local-room"} />
+              </div>
             </div>
           </div>
         </div>

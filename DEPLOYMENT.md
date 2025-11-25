@@ -15,6 +15,56 @@ GammonGuru s'appuie sur un backend **Express.js + Prisma** (déployé sur Render
 └─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
+## 🐳 Environnement Docker de développement (local)
+
+Pour un environnement de dev unifié en local, le dépôt fournit un fichier `docker-compose.dev.yml` qui lance :
+
+- Un conteneur **Postgres 15** (`db`) exposé sur `localhost:5432`.
+- Un conteneur **backend Express** (`app`) construit à partir du `Dockerfile` et exposé sur `http://localhost:3000`.
+
+### 1. Prérequis
+
+- Docker + Docker Compose installés
+- Un fichier `.env` basé sur `.env.example` (les variables de base comme `DATABASE_URL` seront dérivées automatiquement des variables `PG*` de `docker-compose.dev.yml`).
+
+### 2. Lancement de l'environnement
+
+Depuis la racine du projet :
+
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+Cela va :
+
+- Démarrer Postgres avec un volume `pgdata` persistant.
+- Construire l'image backend (npm ci + build TypeScript) et lancer l'API sur le port **3000**.
+
+### 3. Brancher le frontend React (`guru-react`)
+
+Dans un autre terminal :
+
+```bash
+cd guru-react
+npm install  # première fois
+set VITE_API_BASE_URL=http://localhost:3000  # Windows PowerShell (adapter selon ton shell)
+npm run dev
+```
+
+Le frontend sera servi par Vite (par défaut sur `http://localhost:5173`) et enverra ses requêtes API vers le backend Dockerisé (`http://localhost:3000`).
+
+### 4. Arrêter l'environnement Docker
+
+```bash
+docker compose -f docker-compose.dev.yml down
+```
+
+Pour repartir sur une base de données propre, tu peux supprimer le volume :
+
+```bash
+docker compose -f docker-compose.dev.yml down -v
+```
+
 ## 🔧 Backend Deployment (Render)
 
 ### 1. Prerequisites

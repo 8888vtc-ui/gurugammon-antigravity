@@ -8,6 +8,13 @@ export interface BoardState {
   blackOff: number;
 }
 
+export interface MoveRecord {
+  player: PlayerColor;
+  from: number;
+  to: number;
+  notation: string;
+}
+
 export interface GameState {
   board: BoardState;
   currentPlayer: PlayerColor;
@@ -17,6 +24,7 @@ export interface GameState {
   winner: PlayerColor | null;
   lastMove?: { from: number; to: number } | null;
   hintMove?: { from: number; to: number } | null;
+  moveHistory: MoveRecord[];
 }
 
 export const INITIAL_BOARD: number[] = [
