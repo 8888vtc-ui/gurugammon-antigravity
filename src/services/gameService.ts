@@ -1,8 +1,6 @@
 // src/services/gameService.ts
-// @ts-nocheck - Désactiver les vérifications strictes pour le service de jeu
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { BackgammonEngine } from './gameEngine';
-import { convertPrismaPlayer } from '../utils/playerUtils';
 import {
   GameState,
   BoardState,
@@ -12,34 +10,100 @@ import {
   MakeMoveRequest,
   CubeSnapshot,
   GameSummary,
-  TimeControlConfig
+  CreateGameInput,
+  GameStatus as GameStatusType,
+  TimeControlPreset
 } from '../types/game';
-import { notificationService } from './notificationService';
+import { Player as GamePlayer } from '../types/player';
 import { TurnTimerService } from './turnTimerService';
+import { AIService } from './aiService';
 import { config } from '../config';
-import type { games, matches, Player, Prisma } from '@prisma/client';
 import {
-  applyCubeAction as resolveCubeAction,
-  type CubeAction,
-  type CubeHistoryEntry,
-  type CubeContext
+  games,
+  users,
+  matches,
+  GameStatus,
+  Player as PrismaPlayerColor,
+  Prisma
+} from '@prisma/client';
+import {
+  CubeHistoryEntry
 } from './rules/cubeLogic';
 import {
   defaultCrawfordState,
   evaluateCrawfordState,
-  type CrawfordState,
-  type MatchRecord,
-  type MatchRulesOptions
+  CrawfordState,
+  MatchRecord,
+  MatchRulesOptions
 } from './rules/matchEngine';
+import { emitGameEvent } from './gameEventEmitter';
+import { AppError } from '../utils/errors';
+import { Logger } from '../utils/logger';
 
-type MoveOutcome = {
-  board: BoardState;
-  dice: DiceState;
-  nextPlayer: PlayerColor;
-  availableMoves: Move[];
+const logger = new Logger('GameService');
+
+// Helper types for serialization
+type PersistedTimerMeta = {
+  active: PlayerColor | null;
+  whiteTimeMs: number | null;
+  blackTimeMs: number | null;
+  paused?: boolean;
+  updatedAt?: string;
 };
 
+type PersistedSnapshotMeta = {
+  matchLength: number | null;
+  crawford: CrawfordState;
+  timers?: PersistedTimerMeta;
+};
+
+type PersistedSnapshot = {
+  board: BoardState;
+  dice: DiceState;
+  meta?: PersistedSnapshotMeta;
+};
+
+const AI_PLAYER: GamePlayer = {
+  id: 'ai-gnubg',
+  name: 'GuruBot (AI)',
+  email: 'ai@gurugammon.com',
+  points: 2000,
+  isPremium: true,
+  createdAt: new Date(),
+  updatedAt: new Date()
+};
+
+const DEFAULT_MATCH_RULES: MatchRulesOptions = {
+  crawford: true,
+  jacoby: false,
+  beaver: true,
+  raccoon: true
+};
+
+// Helper functions
 const switchPlayer = (player: PlayerColor): PlayerColor => (player === 'white' ? 'black' : 'white');
+
+const playerEnumToColor = (owner: PrismaPlayerColor | null | undefined): PlayerColor | null => {
+  if (owner === 'WHITE') return 'white';
+  if (owner === 'BLACK') return 'black';
+  return null;
+};
+
+const colorToPlayerEnum = (color: PlayerColor | null): PrismaPlayerColor | null => {
+  if (color === 'white') return 'WHITE';
+  if (color === 'black') return 'BLACK';
+  return null;
+};
+
+const toGamePlayer = (user: users): GamePlayer => ({
+  id: user.id,
+  name: user.username || user.firstName || 'Unknown',
+  email: user.email,
+  points: user.eloRating,
+  isPremium: user.subscriptionType !== 'FREE',
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt
+});
 
 const defaultCubeSnapshot = (): CubeSnapshot => ({
   level: 1,
@@ -50,71 +114,22 @@ const defaultCubeSnapshot = (): CubeSnapshot => ({
   history: []
 });
 
-const summarizeGameState = (state: GameState): GameSummary => ({
-  id: state.id,
-  status: state.status,
-  currentPlayer: state.currentPlayer,
-  cube: state.cube,
-  crawford: state.crawford,
-  matchLength: state.matchLength,
-  whiteScore: state.whiteScore,
-  blackScore: state.blackScore
-});
-
-const DEFAULT_MATCH_RULES: MatchRulesOptions = {
-  crawford: true,
-  jacoby: false,
-  beaver: true,
-  raccoon: true
-};
-
-const playerEnumToColor = (owner: Player | null | undefined): PlayerColor | null => {
-  if (owner === 'WHITE') {
-    return 'white';
-  }
-  if (owner === 'BLACK') {
-    return 'black';
-  }
-  return null;
-};
-
-const colorToPlayerEnum = (color: PlayerColor | null): Player | null => {
-  if (color === 'white') {
-    return 'WHITE';
-  }
-  if (color === 'black') {
-    return 'BLACK';
-  }
-  return null;
-};
-
 const parseCubeHistory = (raw: Prisma.JsonValue | null | undefined): CubeHistoryEntry[] => {
-  if (!raw) {
-    return [];
-  }
-
+  if (!raw) return [];
   try {
-    if (Array.isArray(raw)) {
-      return raw as CubeHistoryEntry[];
-    }
-
-    if (typeof raw === 'string') {
-      return JSON.parse(raw) as CubeHistoryEntry[];
-    }
-
+    if (Array.isArray(raw)) return raw as unknown as CubeHistoryEntry[];
+    if (typeof raw === 'string') return JSON.parse(raw) as CubeHistoryEntry[];
     return JSON.parse(JSON.stringify(raw)) as CubeHistoryEntry[];
   } catch {
     return [];
   }
 };
 
-const serializeCubeHistory = (history: CubeHistoryEntry[]): Prisma.JsonValue => history as unknown as Prisma.JsonValue;
+const serializeCubeHistory = (history: CubeHistoryEntry[]): Prisma.InputJsonValue =>
+  history as unknown as Prisma.InputJsonValue;
 
 const parseMatchRules = (rules: Prisma.JsonValue | null | undefined): MatchRulesOptions => {
-  if (!rules) {
-    return DEFAULT_MATCH_RULES;
-  }
-
+  if (!rules) return DEFAULT_MATCH_RULES;
   try {
     const normalized = typeof rules === 'string' ? JSON.parse(rules) : JSON.parse(JSON.stringify(rules));
     return {
@@ -128,15 +143,9 @@ const parseMatchRules = (rules: Prisma.JsonValue | null | undefined): MatchRules
   }
 };
 
-const serializeMatchRules = (rules: MatchRulesOptions): Prisma.JsonValue => rules as unknown as Prisma.JsonValue;
-
 const buildMatchRecord = (match: matches | null): MatchRecord | null => {
-  if (!match) {
-    return null;
-  }
-
+  if (!match) return null;
   const rules = parseMatchRules(match.rules as Prisma.JsonValue);
-
   return {
     id: match.id,
     gameId: match.gameId,
@@ -192,98 +201,6 @@ const buildCrawfordState = (
   });
 };
 
-const shouldRollNewDice = (dice: DiceState) => dice.remaining.length === 0;
-
-const applyTimerSnapshot = (gameId: number, state: GameState, fallback?: {
-  preset?: string | null;
-  whiteRemainingMs: number | null;
-  blackRemainingMs: number | null;
-}): GameState => {
-  const snapshot = TurnTimerService.getSnapshot(gameId);
-
-  if (snapshot) {
-    return {
-      ...state,
-      timeControl: snapshot.config.preset,
-      whiteTimeMs: snapshot.whiteRemainingMs,
-      blackTimeMs: snapshot.blackRemainingMs
-    };
-  }
-
-  if (fallback) {
-    return {
-      ...state,
-      timeControl: fallback.preset ?? state.timeControl ?? null,
-      whiteTimeMs: fallback.whiteRemainingMs,
-      blackTimeMs: fallback.blackRemainingMs
-    };
-  }
-
-  return {
-    ...state,
-    timeControl: state.timeControl ?? null,
-    whiteTimeMs: state.whiteTimeMs ?? null,
-    blackTimeMs: state.blackTimeMs ?? null
-  };
-};
-
-const determineNextTurn = (
-  board: BoardState,
-  currentPlayer: PlayerColor,
-  dice: DiceState,
-  forceSwitch: boolean
-): MoveOutcome => {
-  const currentMoves = BackgammonEngine.calculateAvailableMoves(currentPlayer, board, dice);
-
-  if (!forceSwitch && dice.remaining.length > 0 && currentMoves.length > 0) {
-    return {
-      board,
-      dice,
-      nextPlayer: currentPlayer,
-      availableMoves: currentMoves
-    };
-  }
-
-  let nextPlayer = switchPlayer(currentPlayer);
-  let nextDice = BackgammonEngine.rollDice();
-  let nextMoves = BackgammonEngine.calculateAvailableMoves(nextPlayer, board, nextDice);
-  let safetyCounter = 0;
-
-  while (nextMoves.length === 0 && safetyCounter < 6) {
-    safetyCounter += 1;
-    nextPlayer = switchPlayer(nextPlayer);
-    nextDice = BackgammonEngine.rollDice();
-    nextMoves = BackgammonEngine.calculateAvailableMoves(nextPlayer, board, nextDice);
-  }
-
-  return {
-    board,
-    dice: nextDice,
-    nextPlayer,
-    availableMoves: nextMoves
-  };
-};
-
-type PersistedTimerMeta = {
-  active: PlayerColor | null;
-  whiteTimeMs: number | null;
-  blackTimeMs: number | null;
-  paused?: boolean;
-  updatedAt?: string;
-};
-
-type PersistedSnapshotMeta = {
-  matchLength: number | null;
-  crawford: CrawfordState;
-  timers?: PersistedTimerMeta;
-};
-
-type PersistedSnapshot = {
-  board: BoardState;
-  dice: DiceState;
-  meta?: PersistedSnapshotMeta;
-};
-
 const serializeSnapshot = (snapshot: PersistedSnapshot) => {
   const payload: Record<string, unknown> = {
     board: {
@@ -304,32 +221,37 @@ const serializeSnapshot = (snapshot: PersistedSnapshot) => {
   if (snapshot.meta) {
     const timers = snapshot.meta.timers
       ? {
-          active: snapshot.meta.timers.active,
-          whiteTimeMs: snapshot.meta.timers.whiteTimeMs,
-          blackTimeMs: snapshot.meta.timers.blackTimeMs,
-          ...(typeof snapshot.meta.timers.paused === 'boolean' ? { paused: snapshot.meta.timers.paused } : {}),
-          ...(snapshot.meta.timers.updatedAt ? { updatedAt: snapshot.meta.timers.updatedAt } : {})
-        }
+        active: snapshot.meta.timers.active,
+        whiteTimeMs: snapshot.meta.timers.whiteTimeMs,
+        blackTimeMs: snapshot.meta.timers.blackTimeMs,
+        ...(typeof snapshot.meta.timers.paused === 'boolean' ? { paused: snapshot.meta.timers.paused } : {}),
+        ...(snapshot.meta.timers.updatedAt ? { updatedAt: snapshot.meta.timers.updatedAt } : {})
+      }
       : undefined;
 
     payload.meta = {
       matchLength: snapshot.meta.matchLength ?? null,
       crawford: snapshot.meta.crawford ?? defaultCrawfordState(),
-      ...(timers
-        ? {
-            timers: {
-              active: snapshot.meta.timers.active,
-              whiteTimeMs: snapshot.meta.timers.whiteTimeMs,
-              blackTimeMs: snapshot.meta.timers.blackTimeMs,
-              ...(typeof snapshot.meta.timers.paused === 'boolean' ? { paused: snapshot.meta.timers.paused } : {}),
-              ...(snapshot.meta.timers.updatedAt ? { updatedAt: snapshot.meta.timers.updatedAt } : {})
-            }
-          }
-        : {})
+      ...(timers ? { timers } : {})
     } satisfies PersistedSnapshotMeta;
   }
 
   return payload;
+};
+
+type RawBoardSnapshot = {
+  positions?: unknown;
+  whiteBar?: unknown;
+  blackBar?: unknown;
+  whiteOff?: unknown;
+  blackOff?: unknown;
+};
+
+type RawDiceSnapshot = {
+  dice?: unknown;
+  used?: unknown;
+  remaining?: unknown;
+  doubles?: unknown;
 };
 
 const deserializeSnapshot = (payload: unknown): PersistedSnapshot => {
@@ -342,47 +264,46 @@ const deserializeSnapshot = (payload: unknown): PersistedSnapshot => {
 
   const { board: rawBoard, dice: rawDice, meta: rawMeta } = payload as Record<string, unknown>;
 
+  const rawBoardObj: RawBoardSnapshot =
+    rawBoard && typeof rawBoard === 'object' ? (rawBoard as RawBoardSnapshot) : {};
+  const rawDiceObj: RawDiceSnapshot =
+    rawDice && typeof rawDice === 'object' ? (rawDice as RawDiceSnapshot) : {};
+
+  const positions = Array.isArray(rawBoardObj.positions) && rawBoardObj.positions.length === 24
+    ? rawBoardObj.positions.map((value): number => (typeof value === 'number' ? value : 0))
+    : baseBoard.positions;
+
   const board: BoardState = {
-    positions:
-      rawBoard && typeof rawBoard === 'object' && Array.isArray((rawBoard as any).positions) && (rawBoard as any).positions.length === 24
-        ? (rawBoard as any).positions.map((value: unknown) => (typeof value === 'number' ? value : 0))
-        : baseBoard.positions,
-    whiteBar:
-      rawBoard && typeof rawBoard === 'object' && typeof (rawBoard as any).whiteBar === 'number'
-        ? (rawBoard as any).whiteBar
-        : baseBoard.whiteBar,
-    blackBar:
-      rawBoard && typeof rawBoard === 'object' && typeof (rawBoard as any).blackBar === 'number'
-        ? (rawBoard as any).blackBar
-        : baseBoard.blackBar,
-    whiteOff:
-      rawBoard && typeof rawBoard === 'object' && typeof (rawBoard as any).whiteOff === 'number'
-        ? (rawBoard as any).whiteOff
-        : baseBoard.whiteOff,
-    blackOff:
-      rawBoard && typeof rawBoard === 'object' && typeof (rawBoard as any).blackOff === 'number'
-        ? (rawBoard as any).blackOff
-        : baseBoard.blackOff
+    positions,
+    whiteBar: typeof rawBoardObj.whiteBar === 'number' ? rawBoardObj.whiteBar : baseBoard.whiteBar,
+    blackBar: typeof rawBoardObj.blackBar === 'number' ? rawBoardObj.blackBar : baseBoard.blackBar,
+    whiteOff: typeof rawBoardObj.whiteOff === 'number' ? rawBoardObj.whiteOff : baseBoard.whiteOff,
+    blackOff: typeof rawBoardObj.blackOff === 'number' ? rawBoardObj.blackOff : baseBoard.blackOff
   };
 
+  const diceArray = Array.isArray(rawDiceObj.dice) && rawDiceObj.dice.length === 2
+    ? rawDiceObj.dice.map((value): number => (typeof value === 'number' ? value : 0)) as [number, number]
+    : baseDice.dice;
+
+  const usedArray = Array.isArray(rawDiceObj.used)
+    ? rawDiceObj.used.map(flag => Boolean(flag)).slice(0, 2)
+    : baseDice.used;
+
+  const remainingArray = Array.isArray(rawDiceObj.remaining)
+    ? rawDiceObj.remaining.filter((value): value is number => typeof value === 'number')
+    : baseDice.remaining;
+
+  const doublesValue = typeof rawDiceObj.doubles === 'boolean'
+    ? rawDiceObj.doubles
+    : baseDice.doubles;
+
   const dice: DiceState = {
-    dice:
-      rawDice && typeof rawDice === 'object' && Array.isArray((rawDice as any).dice) && (rawDice as any).dice.length === 2
-        ? (rawDice as any).dice.map((value: unknown) => (typeof value === 'number' ? value : 0)) as [number, number]
-        : baseDice.dice,
-    used:
-      rawDice && typeof rawDice === 'object' && Array.isArray((rawDice as any).used)
-        ? (rawDice as any).used.map(flag => Boolean(flag)).slice(0, 2)
-        : baseDice.used,
-    remaining:
-      rawDice && typeof rawDice === 'object' && Array.isArray((rawDice as any).remaining)
-        ? (rawDice as any).remaining.filter((value: unknown): value is number => typeof value === 'number')
-        : baseDice.remaining,
-    doubles:
-      rawDice && typeof rawDice === 'object' && typeof (rawDice as any).doubles === 'boolean'
-        ? (rawDice as any).doubles
-        : baseDice.doubles
+    dice: diceArray,
+    used: usedArray,
+    remaining: remainingArray,
+    doubles: doublesValue
   };
+
   let meta: PersistedSnapshotMeta | undefined;
   if (rawMeta && typeof rawMeta === 'object') {
     const candidate = rawMeta as { matchLength?: unknown; crawford?: unknown; timers?: unknown };
@@ -390,8 +311,8 @@ const deserializeSnapshot = (payload: unknown): PersistedSnapshot => {
       typeof candidate.matchLength === 'number'
         ? candidate.matchLength
         : candidate.matchLength === null
-        ? null
-        : null;
+          ? null
+          : null;
 
     let crawford = defaultCrawfordState();
     if (candidate.crawford && typeof candidate.crawford === 'object') {
@@ -405,14 +326,14 @@ const deserializeSnapshot = (payload: unknown): PersistedSnapshot => {
           typeof input.matchLength === 'number'
             ? input.matchLength
             : input.matchLength === null
-            ? null
-            : defaultCrawfordState().matchLength,
+              ? null
+              : defaultCrawfordState().matchLength,
         oneAwayScore:
           typeof input.oneAwayScore === 'number'
             ? input.oneAwayScore
             : input.oneAwayScore === null
-            ? null
-            : defaultCrawfordState().oneAwayScore,
+              ? null
+              : defaultCrawfordState().oneAwayScore,
         triggeredBy:
           input.triggeredBy === 'white' || input.triggeredBy === 'black' ? input.triggeredBy : null
       } satisfies CrawfordState;
@@ -442,6 +363,39 @@ const deserializeSnapshot = (payload: unknown): PersistedSnapshot => {
   return meta ? { board, dice, meta } : { board, dice };
 };
 
+const applyTimerSnapshot = (gameId: string, state: GameState, fallback?: {
+  preset?: TimeControlPreset | null;
+  whiteRemainingMs: number | null;
+  blackRemainingMs: number | null;
+}): GameState => {
+  const snapshot = TurnTimerService.getSnapshot(Number(gameId));
+
+  if (snapshot) {
+    return {
+      ...state,
+      timeControl: snapshot.config.preset,
+      whiteTimeMs: snapshot.whiteRemainingMs,
+      blackTimeMs: snapshot.blackRemainingMs
+    };
+  }
+
+  if (fallback) {
+    return {
+      ...state,
+      timeControl: fallback.preset ?? state.timeControl ?? null,
+      whiteTimeMs: fallback.whiteRemainingMs,
+      blackTimeMs: fallback.blackRemainingMs
+    };
+  }
+
+  return {
+    ...state,
+    timeControl: state.timeControl ?? null,
+    whiteTimeMs: state.whiteTimeMs ?? null,
+    blackTimeMs: state.blackTimeMs ?? null
+  };
+};
+
 const persistGameSnapshot = async (
   gameId: string,
   snapshot: {
@@ -467,78 +421,86 @@ const persistGameSnapshot = async (
   const timerSnapshot = TurnTimerService.getSnapshot(Number(gameId));
   const timers: PersistedTimerMeta | undefined = timerSnapshot
     ? {
-        active: timerSnapshot.paused ? null : timerSnapshot.active,
-        whiteTimeMs: timerSnapshot.whiteRemainingMs,
-        blackTimeMs: timerSnapshot.blackRemainingMs,
-        paused: timerSnapshot.paused,
-        updatedAt: new Date().toISOString()
-      }
+      active: timerSnapshot.paused ? null : timerSnapshot.active,
+      whiteTimeMs: timerSnapshot.whiteRemainingMs,
+      blackTimeMs: timerSnapshot.blackRemainingMs,
+      paused: timerSnapshot.paused,
+      updatedAt: new Date().toISOString()
+    }
     : snapshot.crawford || typeof snapshot.matchLength !== 'undefined'
-    ? snapshot.crawford && snapshot.crawford.matchLength !== undefined
-      ? undefined
-      : undefined
-    : undefined;
+      ? snapshot.crawford && snapshot.crawford.matchLength !== undefined
+        ? undefined
+        : undefined
+      : undefined;
 
   const meta =
     snapshot.crawford || typeof snapshot.matchLength !== 'undefined' || timers
       ? {
-          matchLength: typeof snapshot.matchLength !== 'undefined' ? snapshot.matchLength : null,
-          crawford: snapshot.crawford ?? defaultCrawfordState(),
-          ...(timers ? { timers } : {})
-        }
+        matchLength: typeof snapshot.matchLength !== 'undefined' ? snapshot.matchLength : null,
+        crawford: snapshot.crawford ?? defaultCrawfordState(),
+        ...(timers ? { timers } : {})
+      }
       : undefined;
 
-  await prisma.game.update({
+  await prisma.games.update({
     where: { id: gameId },
     data: {
       boardState: serializeSnapshot({
         board: snapshot.board,
         dice: snapshot.dice,
         ...(meta ? { meta } : {})
-      }),
+      }) as Prisma.InputJsonValue,
       dice: [...snapshot.dice.dice],
       currentPlayer: snapshot.currentPlayer === 'white' ? 'WHITE' : 'BLACK',
-      status: snapshot.status ? snapshot.status.toUpperCase() : undefined,
+      ...(snapshot.status
+        ? { status: snapshot.status.toUpperCase() as GameStatus }
+        : {}),
       ...(cubeData
         ? {
-            cubeLevel: cubeData.level,
-            cubeOwner: cubeOwnerEnum,
-            doublePending: cubeData.doublePending,
-            doubleOfferedBy: cubeOfferedBy,
-            cubeHistory: serializeCubeHistory(cubeData.history)
-          }
+          cubeLevel: cubeData.level,
+          cubeOwner: cubeOwnerEnum,
+          doublePending: cubeData.doublePending,
+          doubleOfferedBy: cubeOfferedBy,
+          cubeHistory: serializeCubeHistory(cubeData.history)
+        }
         : {})
     }
   });
 };
 
-export class GameService {
+type GameWithRelations = games & {
+  whitePlayer: users;
+  blackPlayer: users | null;
+  match: matches | null;
+};
 
-  // Créer un nouvel état de jeu
-  static async createGameState(player1Id: number, gameType: string, stake: number): Promise<GameState> {
-    const player1 = await prisma.player.findUnique({
-      where: { id: player1Id },
-      select: { id: true, name: true, email: true, points: true }
+export class GameService {
+  static async createGame(input: CreateGameInput): Promise<GameState> {
+    const { userId, mode, stake, opponentId } = input;
+
+    const creator = await prisma.users.findUnique({
+      where: { id: userId }
     });
 
-    if (!player1) {
-      throw new Error('Player not found');
+    if (!creator) {
+      throw new AppError('User not found', 404);
     }
 
-    // Créer l'état de jeu initial et persister
     const initialBoard = BackgammonEngine.createInitialBoard();
     const initialDice = BackgammonEngine.rollDice();
-
     const defaultTimeControl = config.timeControl;
 
-    const prismaGame = await prisma.game.create({
+    // Create the game in DB
+    const newGame = await prisma.games.create({
       data: {
-        player1Id,
-        gameType,
+        id: crypto.randomUUID(),
+        whitePlayerId: userId,
+        blackPlayerId: mode === 'PLAYER_VS_PLAYER' ? (opponentId || null) : null,
+        gameMode: mode,
         stake,
         status: 'WAITING',
         currentPlayer: 'WHITE',
-        boardState: serializeSnapshot({ board: initialBoard, dice: initialDice }),
+        boardState: serializeSnapshot({ board: initialBoard, dice: initialDice }) as Prisma.InputJsonValue,
         dice: [...initialDice.dice],
         timeControlPreset: defaultTimeControl.preset,
         timeControlTotalMs: defaultTimeControl.totalTimeMs,
@@ -554,163 +516,74 @@ export class GameService {
       }
     });
 
-    TurnTimerService.configure(prismaGame.id, defaultTimeControl.preset, {
-      totalTimeMs: defaultTimeControl.totalTimeMs,
-      incrementMs: defaultTimeControl.incrementMs,
-      delayMs: defaultTimeControl.delayMs
-    });
+    if (mode === 'AI_VS_PLAYER') {
+      await prisma.games.update({
+        where: { id: newGame.id },
+        data: { status: 'PLAYING' }
+      });
+      newGame.status = 'PLAYING';
+    }
 
-    // Créer un objet Player complet
-    const fullPlayer1 = convertPrismaPlayer(player1);
+    try {
+      TurnTimerService.configure(Number(newGame.id) || 0, defaultTimeControl.preset, {
+        totalTimeMs: defaultTimeControl.totalTimeMs,
+        incrementMs: defaultTimeControl.incrementMs,
+        delayMs: defaultTimeControl.delayMs
+      });
+    } catch (e) {
+      // Ignore timer errors
+    }
+
+    const fullPlayer1 = toGamePlayer(creator);
+    const fullPlayer2 = mode === 'AI_VS_PLAYER' ? AI_PLAYER : null;
+
+    emitGameEvent(newGame.id, 'join', { gameId: newGame.id, userId }, userId);
 
     return {
-      id: prismaGame.id.toString(),
+      id: newGame.id,
       player1: fullPlayer1,
-      player2: null,
-      status: 'waiting',
-      gameType: gameType as any,
+      player2: fullPlayer2,
+      status: newGame.status.toLowerCase() as GameStatusType,
+      gameType: 'match',
       stake,
       winner: null,
       timeControl: defaultTimeControl.preset,
       whiteTimeMs: defaultTimeControl.totalTimeMs,
       blackTimeMs: defaultTimeControl.totalTimeMs,
-      matchLength: prismaGame.matchLength ?? null,
+      matchLength: newGame.matchLength ?? null,
       crawford: defaultCrawfordState(),
       cube: defaultCubeSnapshot(),
       board: initialBoard,
       currentPlayer: 'white',
       dice: initialDice,
       availableMoves: BackgammonEngine.calculateAvailableMoves('white', initialBoard, initialDice),
-      createdAt: prismaGame.createdAt,
-      startedAt: null,
-      finishedAt: null
+      createdAt: newGame.createdAt,
+      startedAt: newGame.createdAt, // Fallback to createdAt
+      finishedAt: newGame.finishedAt,
+      drawOfferBy: null,
+      whiteScore: 0,
+      blackScore: 0
     };
   }
 
-  // Démarrer une partie (quand le deuxième joueur rejoint)
-  static async startGame(gameId: number, player2Id: number): Promise<GameState> {
-    const game = await prisma.game.findUnique({
+  static async getGame(id: string | number): Promise<GameState | null> {
+    const gameId = String(id);
+    const game = await prisma.games.findUnique({
       where: { id: gameId },
       include: {
-        player1: { select: { id: true, name: true, email: true, points: true } },
-        player2: { select: { id: true, name: true, email: true, points: true } }
-      }
-    });
-
-    if (!game) {
-      throw new Error('Game not found');
-    }
-
-    if (game.status !== 'waiting') {
-      throw new Error('Game is not in waiting status');
-    }
-
-    const player2 = await prisma.player.findUnique({
-      where: { id: player2Id },
-      select: { id: true, name: true, email: true, points: true }
-    });
-
-    if (!player2) {
-      throw new Error('Player2 not found');
-    }
-
-    // Mettre à jour la partie en base
-    const updatedGame = await prisma.game.update({
-      where: { id: gameId },
-      data: {
-        player2Id,
-        status: 'playing',
-        startedAt: new Date()
-      },
-      include: {
-        player1: { select: { id: true, name: true, email: true, points: true } },
-        player2: { select: { id: true, name: true, email: true, points: true } }
-      }
-    });
-
-    const snapshot = deserializeSnapshot(game.boardState);
-
-    const snapshotMatchLength = typeof snapshot.meta?.matchLength !== 'undefined'
-      ? snapshot.meta?.matchLength
-      : game.matchLength ?? null;
-    const snapshotCrawford = snapshot.meta?.crawford ?? defaultCrawfordState();
-
-    await persistGameSnapshot(String(gameId), {
-      board: snapshot.board,
-      dice: snapshot.dice,
-      currentPlayer: 'white',
-      status: 'PLAYING',
-      cube: buildCubeSnapshot(game),
-      matchLength: snapshotMatchLength,
-      crawford: snapshotCrawford
-    });
-
-    const nextState = await this.loadGameState(gameId);
-
-    if (!nextState) {
-      throw new Error('Failed to start game');
-    }
-
-    TurnTimerService.ensure(gameId, game.timeControlPreset ?? defaultTimeControl.preset);
-
-    return applyTimerSnapshot(gameId, {
-      ...nextState,
-      player1: convertPrismaPlayer(updatedGame.player1),
-      player2: updatedGame.player2 ? convertPrismaPlayer(updatedGame.player2) : null,
-      startedAt: updatedGame.startedAt
-    });
-  }
-
-  // Charger l'état d'une partie depuis la base
-  static async loadGameState(gameId: number): Promise<GameState | null> {
-    const game = await prisma.game.findUnique({
-      where: { id: gameId },
-      include: {
-        player1: { select: { id: true, name: true, email: true, points: true } },
-        player2: { select: { id: true, name: true, email: true, points: true } },
-        winner: { select: { id: true, name: true, email: true, points: true } },
+        whitePlayer: true,
+        blackPlayer: true,
         match: true
       }
-    });
+    }) as GameWithRelations | null;
 
-    if (!game) {
-      return null;
-    }
+    if (!game) return null;
 
     const snapshot = deserializeSnapshot(game.boardState);
-
-    const timerMeta = snapshot.meta?.timers;
-    const timerOverrides: Partial<TimeControlConfig> = {};
-    if (typeof game.timeControlTotalMs === 'number') {
-      timerOverrides.totalTimeMs = game.timeControlTotalMs;
-    }
-    if (typeof game.timeControlIncrementMs === 'number') {
-      timerOverrides.incrementMs = game.timeControlIncrementMs;
-    }
-    if (typeof game.timeControlDelayMs === 'number') {
-      timerOverrides.delayMs = game.timeControlDelayMs;
-    }
-
-    const resolvedActiveTimer: PlayerColor | null = game.activeTimer === 'WHITE'
-      ? 'white'
-      : game.activeTimer === 'BLACK'
-      ? 'black'
-      : timerMeta?.active ?? null;
-
-    TurnTimerService.restore(gameId, {
-      preset: game.timeControlPreset ?? null,
-      whiteRemainingMs: game.whiteTimeRemainingMs ?? timerMeta?.whiteTimeMs ?? null,
-      blackRemainingMs: game.blackTimeRemainingMs ?? timerMeta?.blackTimeMs ?? null,
-      activePlayer: resolvedActiveTimer,
-      lastUpdatedAt: game.timerUpdatedAt ?? (timerMeta?.updatedAt ? new Date(timerMeta.updatedAt) : null),
-      overrides: timerOverrides
-    });
-
     const matchRecord = buildMatchRecord(game.match ?? null);
     const rules = matchRecord?.rules ?? DEFAULT_MATCH_RULES;
-
     const resolvedMatchLength = snapshot.meta?.matchLength ?? game.matchLength ?? matchRecord?.length ?? null;
-    const crawfordState = buildCrawfordState(game as games, matchRecord, rules, snapshot.meta);
+    const crawfordState = buildCrawfordState(game, matchRecord, rules, snapshot.meta);
 
     const diceFromColumn = Array.isArray(game.dice) && game.dice.length === 2
       ? (game.dice.map(value => (typeof value === 'number' ? value : 0)) as [number, number])
@@ -724,158 +597,108 @@ export class GameService {
     const currentPlayer = (game.currentPlayer ?? 'WHITE').toLowerCase() as PlayerColor;
     const availableMoves = BackgammonEngine.calculateAvailableMoves(currentPlayer, snapshot.board, mergedDice);
 
-    const stateWithTimers = applyTimerSnapshot(gameId, {
-      id: game.id.toString(),
-      player1: convertPrismaPlayer(game.player1),
-      player2: game.player2 ? convertPrismaPlayer(game.player2) : null,
-      status: game.status as any,
-      gameType: game.gameMode as any,
+    const player1 = toGamePlayer(game.whitePlayer);
+    let player2 = game.blackPlayer ? toGamePlayer(game.blackPlayer) : null;
+
+    if (!player2 && game.gameMode === 'AI_VS_PLAYER') {
+      player2 = AI_PLAYER;
+    }
+
+    const state: GameState = {
+      id: game.id,
+      player1,
+      player2,
+      status: game.status.toLowerCase() as GameStatusType,
+      gameType: 'match',
       stake: game.stake,
-      winner: game.winner ? convertPrismaPlayer(game.winner) : null,
+      winner: game.winner === 'WHITE' ? player1 : (game.winner === 'BLACK' ? player2 : null),
+      timeControl: game.timeControlPreset ?? null,
+      whiteTimeMs: game.whiteTimeRemainingMs,
+      blackTimeMs: game.blackTimeRemainingMs,
+      matchLength: resolvedMatchLength,
+      crawford: crawfordState,
+      cube: buildCubeSnapshot(game),
       board: snapshot.board,
       currentPlayer,
       dice: mergedDice,
       availableMoves,
       createdAt: game.createdAt,
-      startedAt: game.startedAt,
+      startedAt: game.createdAt, // Fallback
       finishedAt: game.finishedAt,
-      timeControl: game.timeControlPreset ?? null,
-      whiteTimeMs: game.whiteTimeRemainingMs ?? timerMeta?.whiteTimeMs ?? null,
-      blackTimeMs: game.blackTimeRemainingMs ?? timerMeta?.blackTimeMs ?? null,
-      matchLength: resolvedMatchLength,
-      crawford: crawfordState,
-      cube: buildCubeSnapshot(game)
-    }, {
-      preset: game.timeControlPreset ?? null,
-      whiteRemainingMs: game.whiteTimeRemainingMs ?? timerMeta?.whiteTimeMs ?? null,
-      blackRemainingMs: game.blackTimeRemainingMs ?? timerMeta?.blackTimeMs ?? null
-    });
+      drawOfferBy: null,
+      whiteScore: game.whiteScore,
+      blackScore: game.blackScore
+    };
 
-    return stateWithTimers;
+    return applyTimerSnapshot(game.id, state);
   }
 
-  // Faire un mouvement
-  static async makeMove(gameId: number, playerId: number, moveRequest: MakeMoveRequest): Promise<GameState> {
-    const game = await prisma.game.findUnique({
-      where: { id: gameId },
-      include: {
-        player1: { select: { id: true, name: true, email: true, points: true } },
-        player2: { select: { id: true, name: true, email: true, points: true } },
-        winner: { select: { id: true, name: true, email: true, points: true } }
-      }
+  static async getGameSummary(id: string | number): Promise<GameSummary | null> {
+    const game = await this.getGame(id);
+    if (!game) return null;
+    return {
+      id: game.id,
+      status: game.status,
+      currentPlayer: game.currentPlayer,
+      cube: game.cube,
+      crawford: game.crawford,
+      matchLength: game.matchLength,
+      whiteScore: game.whiteScore,
+      blackScore: game.blackScore
+    };
+  }
+
+  static async rollDice(gameId: string, userId: string): Promise<GameState> {
+    const game = await this.getGame(gameId);
+    if (!game) throw new AppError('Game not found', 404);
+
+    const isWhite = game.player1.id === userId;
+
+    if (!isWhite && game.player2?.id !== userId) throw new AppError('Not a player in this game', 403);
+
+    const playerColor: PlayerColor = isWhite ? 'white' : 'black';
+    if (game.currentPlayer !== playerColor) throw new AppError('Not your turn', 403);
+
+    if (game.dice.remaining.length > 0 && !game.dice.used.every(u => u)) {
+      return game;
+    }
+
+    const newDice = BackgammonEngine.rollDice();
+
+    await persistGameSnapshot(gameId, {
+      board: game.board,
+      dice: newDice,
+      currentPlayer: game.currentPlayer,
+      status: game.status,
+      cube: game.cube,
+      crawford: game.crawford,
+      matchLength: game.matchLength
     });
 
-    if (!game) {
-      throw new Error('Game not found');
+    // Notify connected clients that dice have been rolled
+    emitGameEvent(gameId, 'roll', {
+      board: game.board,
+      dice: newDice,
+      currentPlayer: game.currentPlayer
+    }, userId);
+
+    return this.getGame(gameId) as Promise<GameState>;
+  }
+
+  static async makeMove(gameId: string, userId: string, moveRequest: MakeMoveRequest): Promise<GameState> {
+    let game = await this.getGame(gameId);
+    if (!game) throw new AppError('Game not found', 404);
+
+    if (game.status !== 'playing') throw new AppError('Game is not playing', 400);
+
+    const isWhite = game.player1.id === userId;
+
+    const playerColor: PlayerColor = isWhite ? 'white' : 'black';
+
+    if (game.currentPlayer !== playerColor) {
+      throw new AppError('Not your turn', 403);
     }
 
-    const normalizedStatus = String(game.status ?? '').toLowerCase();
-    if (normalizedStatus !== 'playing') {
-      throw new Error('Game is not in playing status');
-    }
-
-    // Déterminer la couleur du joueur
-    const playerColor = game.player1Id === playerId ? 'white' : 'black';
-    const currentPlayer = game.player1Id === playerId ? game.player1 : game.player2;
-
-    if (!currentPlayer) {
-      throw new Error('Player not in game');
-    }
-
-    const baseState = await this.loadGameState(gameId);
-    if (!baseState) {
-      throw new Error('Game state not found');
-    }
-
-    const currentState = applyTimerSnapshot(gameId, baseState);
-
-    // Vérifier que c'est le tour du joueur
-    if (currentState.currentPlayer !== playerColor) {
-      throw new Error('Not your turn');
-    }
-
-    const timerConsumption = TurnTimerService.consume(gameId, currentState.currentPlayer);
-
-    if (timerConsumption && timerConsumption.flagFall) {
-      const losingColor = timerConsumption.flagFall;
-      const winningColor = losingColor === 'white' ? 'black' : 'white';
-      const winnerPlayer = winningColor === 'white' ? game.player1 : game.player2;
-      const loserPlayer = winningColor === 'white' ? game.player2 : game.player1;
-
-      await prisma.game.update({
-        where: { id: gameId },
-        data: {
-          status: 'FINISHED',
-          winnerId: winnerPlayer?.id ?? null,
-          finishedAt: new Date()
-        }
-      });
-
-      if (winnerPlayer) {
-        notificationService.notifyVictory(winnerPlayer.id, {
-          gameId: String(gameId),
-          opponentId: loserPlayer?.id ?? null,
-          opponentUsername: (loserPlayer?.name ?? loserPlayer?.email) ?? null
-        });
-      }
-
-      const finalState = applyTimerSnapshot(gameId, {
-        ...currentState,
-        status: 'finished',
-        winner: winnerPlayer ? convertPrismaPlayer(winnerPlayer) : null,
-        finishedAt: new Date(),
-        availableMoves: [],
-        currentPlayer: winningColor,
-        dice: currentState.dice
-      }, {
-        preset: currentState.timeControl,
-        whiteRemainingMs: timerConsumption.whiteRemainingMs,
-        blackRemainingMs: timerConsumption.blackRemainingMs
-      });
-
-      TurnTimerService.clear(gameId);
-
-      return finalState;
-    }
-
-    const legalMoves = BackgammonEngine.calculateAvailableMoves(
-      currentState.currentPlayer,
-      currentState.board,
-      currentState.dice
-    );
-
-    if (legalMoves.length === 0) {
-      const outcome = determineNextTurn(currentState.board, currentState.currentPlayer, currentState.dice, true);
-
-      await persistGameSnapshot(String(gameId), {
-        board: outcome.board,
-        dice: outcome.dice,
-        currentPlayer: outcome.nextPlayer,
-        status: game.status,
-        cube: currentState.cube,
-        matchLength: currentState.matchLength,
-        crawford: currentState.crawford
-      });
-
-      TurnTimerService.completeMove(gameId, currentState.currentPlayer, outcome.nextPlayer);
-
-      return applyTimerSnapshot(gameId, {
-        ...currentState,
-        board: outcome.board,
-        currentPlayer: outcome.nextPlayer,
-        dice: outcome.dice,
-        availableMoves: outcome.availableMoves
-      });
-    }
-
-    const playerBarCount =
-      playerColor === 'white' ? currentState.board.whiteBar : currentState.board.blackBar;
-
-    if (playerBarCount > 0 && moveRequest.from !== 24) {
-      throw new Error('You must enter all checkers from the bar before moving others');
-    }
-
-    // Créer l'objet mouvement
     const move: Move = {
       from: moveRequest.from,
       to: moveRequest.to,
@@ -883,378 +706,172 @@ export class GameService {
       diceUsed: moveRequest.diceUsed
     };
 
-    const moveAllowed = legalMoves.some(
-      candidate =>
-        candidate.from === move.from &&
-        candidate.to === move.to &&
-        candidate.diceUsed === move.diceUsed
+    // Strict validation against calculated available moves
+    const legalMoves = BackgammonEngine.calculateAvailableMoves(playerColor, game.board, game.dice);
+    const isAvailable = legalMoves.some(m =>
+      m.from === move.from &&
+      m.to === move.to &&
+      m.diceUsed === move.diceUsed
     );
 
-    if (!moveAllowed) {
-      throw new Error('Requested move is not among the available moves');
+    if (!isAvailable) {
+      throw new AppError('Requested move is not among the available moves', 400);
     }
 
-    // Valider le mouvement
-    const validation = BackgammonEngine.validateMove(move, currentState.board, currentState.dice);
+    const validation = BackgammonEngine.validateMove(move, game.board, game.dice);
     if (!validation.valid) {
-      throw new Error(validation.error || 'Invalid move');
+      throw new AppError(validation.error || 'Invalid move', 400);
     }
 
-    // Appliquer le mouvement
-    const newBoard = BackgammonEngine.applyMove(move, currentState.board);
-    const newDice = BackgammonEngine.useDie(move.diceUsed, currentState.dice);
+    const newBoard = BackgammonEngine.applyMove(move, game.board);
+    const newDice = BackgammonEngine.useDie(move.diceUsed, game.dice);
 
-    const nextPlayer = currentState.currentPlayer === 'white' ? 'black' : 'white';
-    const shouldRoll = shouldRollNewDice(newDice);
-    const outcome = determineNextTurn(newBoard, nextPlayer, newDice, shouldRoll);
-
-    if (shouldRoll) {
-      TurnTimerService.completeMove(gameId, currentState.currentPlayer, outcome.nextPlayer);
-    }
-
-    // Vérifier la condition de victoire
     const winnerColor = BackgammonEngine.checkWinCondition(newBoard);
+    let winner: PrismaPlayerColor | null = null;
+    let status: GameStatusType = game.status;
+    let finishedAt: Date | null = null;
 
     if (winnerColor) {
-      // Terminer la partie
-      const winnerPlayer = winnerColor === 'white' ? game.player1 : game.player2;
-      const loserPlayer = winnerColor === 'white' ? game.player2 : game.player1;
+      winner = winnerColor === 'white' ? 'WHITE' : 'BLACK';
+      status = 'completed';
+      finishedAt = new Date();
+    }
 
-      // Mettre à jour les points
-      if (winnerPlayer && loserPlayer) {
-        await prisma.player.update({
-          where: { id: winnerPlayer.id },
-          data: { points: { increment: game.stake } }
-        });
+    const availableMoves = BackgammonEngine.calculateAvailableMoves(playerColor, newBoard, newDice);
+    let nextPlayer = playerColor;
+    let nextDice = newDice;
 
-        await prisma.player.update({
-          where: { id: loserPlayer.id },
-          data: { points: { decrement: game.stake } }
-        });
-      }
+    if (!winner && availableMoves.length === 0) {
+      nextPlayer = switchPlayer(playerColor);
+      nextDice = BackgammonEngine.rollDice();
+    }
 
-      await persistGameSnapshot(String(gameId), {
-        board: newBoard,
-        dice: outcome.dice,
-        currentPlayer: outcome.nextPlayer,
-        status: 'FINISHED',
-        cube: currentState.cube,
-        matchLength: currentState.matchLength,
-        crawford: currentState.crawford
-      });
+    await persistGameSnapshot(gameId, {
+      board: newBoard,
+      dice: nextDice,
+      currentPlayer: nextPlayer,
+      status: status,
+      cube: game.cube,
+      crawford: game.crawford,
+      matchLength: game.matchLength
+    });
 
-      await prisma.game.update({
+    emitGameEvent(gameId, 'move', {
+      from: move.from,
+      to: move.to,
+      diceUsed: move.diceUsed,
+      player: move.player,
+      board: newBoard,
+      dice: nextDice,
+      currentPlayer: nextPlayer,
+      winner: winner
+    }, userId);
+
+    if (winner) {
+      await prisma.games.update({
         where: { id: gameId },
         data: {
-          status: 'FINISHED',
-          winnerId: winnerPlayer?.id,
-          finishedAt: new Date()
+          winner,
+          status: 'COMPLETED',
+          finishedAt
         }
       });
-
-      if (winnerPlayer) {
-        notificationService.notifyVictory(winnerPlayer.id, {
-          gameId: String(gameId),
-          opponentId: loserPlayer?.id ?? null,
-          opponentUsername: (loserPlayer?.name ?? loserPlayer?.email) ?? null
-        });
-      }
-
-      const finishedState = applyTimerSnapshot(gameId, {
-        ...currentState,
-        board: newBoard,
-        currentPlayer: outcome.nextPlayer,
-        dice: outcome.dice,
-        availableMoves: [],
-        status: 'finished',
-        winner: winnerPlayer,
-        finishedAt: new Date()
-      });
-
-      TurnTimerService.clear(gameId);
-
-      return finishedState;
     }
 
-    await persistGameSnapshot(String(gameId), {
-      board: outcome.board,
-      dice: outcome.dice,
-      currentPlayer: outcome.nextPlayer,
-      status: game.status,
-      cube: currentState.cube,
-      matchLength: currentState.matchLength,
-      crawford: currentState.crawford
-    });
+    const updatedGame = await this.getGame(gameId);
+    if (!updatedGame) throw new AppError('Game lost after update', 500);
+    game = updatedGame;
 
-    TurnTimerService.completeMove(gameId, currentState.currentPlayer, outcome.nextPlayer);
+    if (winner) return game;
 
-    return applyTimerSnapshot(gameId, {
-      ...currentState,
-      board: outcome.board,
-      currentPlayer: outcome.nextPlayer,
-      dice: outcome.dice,
-      availableMoves: outcome.availableMoves
-    });
-  }
+    // AI Turn Handling
+    if (game.player2?.id === 'ai-gnubg' && game.currentPlayer === 'black' && game.status === 'playing') {
+      try {
+        let aiTurnOver = false;
+        let safety = 0;
 
-  static async applyCubeAction(gameId: number, playerId: string | number, action: CubeAction): Promise<GameState> {
-    const game = await prisma.game.findUnique({
-      where: { id: gameId },
-      include: {
-        player1: { select: { id: true, name: true, email: true, points: true } },
-        player2: { select: { id: true, name: true, email: true, points: true } },
-        match: true
-      }
-    });
+        while (!aiTurnOver && safety < 10) {
+          safety++;
+          const aiMoveSuggestion = await AIService.getBestMove({
+            boardState: game.board,
+            dice: game.dice,
+            userId: userId,
+            gameId: gameId
+          });
 
-    if (!game) {
-      throw new Error('Game not found');
-    }
+          if (aiMoveSuggestion && aiMoveSuggestion.move) {
+            const aiMove = aiMoveSuggestion.move;
+            const aiBoard = BackgammonEngine.applyMove(aiMove, game.board);
+            const aiDice = BackgammonEngine.useDie(aiMove.diceUsed, game.dice);
 
-    const status = String(game.status ?? '').toLowerCase();
-    if (status !== 'playing') {
-      throw new Error('Cube actions only allowed during active games');
-    }
+            const aiWinnerColor = BackgammonEngine.checkWinCondition(aiBoard);
+            let aiWinner: PrismaPlayerColor | null = null;
+            let aiStatus: GameStatusType = game.status;
+            let aiFinishedAt: Date | null = null;
 
-    const playerKey = String(playerId);
-    const isPlayer1 = String(game.player1Id) === playerKey;
-    const isPlayer2 = String(game.player2Id ?? '') === playerKey;
+            if (aiWinnerColor) {
+              aiWinner = aiWinnerColor === 'white' ? 'WHITE' : 'BLACK';
+              aiStatus = 'completed';
+              aiFinishedAt = new Date();
+            }
 
-    if (!isPlayer1 && !isPlayer2) {
-      throw new Error('Player not part of this game');
-    }
+            const aiAvailableMoves = BackgammonEngine.calculateAvailableMoves('black', aiBoard, aiDice);
+            let aiNextPlayer = 'black' as PlayerColor;
+            let aiNextDice = aiDice;
 
-    const playerColor: PlayerColor = isPlayer1 ? 'white' : 'black';
+            if (!aiWinner && aiAvailableMoves.length === 0) {
+              aiNextPlayer = 'white';
+              aiNextDice = BackgammonEngine.rollDice();
+              aiTurnOver = true;
+            }
 
-    if ((action === 'double' || action === 'redouble') && (game.currentPlayer ?? 'WHITE').toLowerCase() !== playerColor) {
-      throw new Error('Only the current player may offer a double');
-    }
+            await persistGameSnapshot(gameId, {
+              board: aiBoard,
+              dice: aiNextDice,
+              currentPlayer: aiNextPlayer,
+              status: aiStatus,
+              cube: game.cube,
+              crawford: game.crawford,
+              matchLength: game.matchLength
+            });
 
-    const cubeSnapshot = buildCubeSnapshot(game);
-    const persistedSnapshot = deserializeSnapshot(game.boardState);
-    const persistedCurrentPlayer = (game.currentPlayer ?? 'WHITE').toLowerCase() as PlayerColor;
-    const matchRecord = buildMatchRecord(game.match ?? null);
-    const rules = matchRecord?.rules ?? DEFAULT_MATCH_RULES;
-    const opponentColor: PlayerColor = playerColor === 'white' ? 'black' : 'white';
+            emitGameEvent(gameId, 'move', {
+              from: aiMove.from,
+              to: aiMove.to,
+              diceUsed: aiMove.diceUsed,
+              player: 'black',
+              board: aiBoard,
+              dice: aiNextDice,
+              currentPlayer: aiNextPlayer,
+              winner: aiWinner
+            }, 'ai-gnubg');
 
-    if ((action === 'take' || action === 'pass' || action === 'beaver' || action === 'raccoon') && cubeSnapshot.doubleOfferedBy === null) {
-      throw new Error('No double is pending');
-    }
+            if (aiWinner) {
+              await prisma.games.update({
+                where: { id: gameId },
+                data: {
+                  winner: aiWinner,
+                  status: 'COMPLETED',
+                  finishedAt: aiFinishedAt
+                }
+              });
+              aiTurnOver = true;
+            }
 
-    if ((action === 'take' || action === 'pass') && cubeSnapshot.doubleOfferedBy === playerColor) {
-      throw new Error('Offering player cannot respond to their own double');
-    }
+            const aiUpdatedGame = await this.getGame(gameId);
+            if (!aiUpdatedGame) break;
+            game = aiUpdatedGame;
 
-    const context: CubeContext = {
-      currentPlayer: playerColor,
-      cube: {
-        level: cubeSnapshot.level,
-        owner: cubeSnapshot.owner,
-        isCentered: cubeSnapshot.isCentered
-      },
-      matchLength: game.matchLength ?? matchRecord?.length ?? null,
-      whiteScore: game.whiteScore,
-      blackScore: game.blackScore,
-      rules,
-      doublePending: cubeSnapshot.doublePending,
-      doubleOfferedBy: cubeSnapshot.doubleOfferedBy,
-      match: matchRecord,
-      game: game as games
-    };
-
-    const result = resolveCubeAction(context, action);
-    const updatedHistory = [...cubeSnapshot.history, result.historyEntry];
-
-    const snapshotMatchLengthOverride = typeof persistedSnapshot.meta?.matchLength !== 'undefined'
-      ? persistedSnapshot.meta.matchLength
-      : undefined;
-    const resolvedMatchLength = typeof snapshotMatchLengthOverride !== 'undefined'
-      ? snapshotMatchLengthOverride
-      : game.matchLength ?? matchRecord?.length ?? null;
-
-    const gameUpdate: Prisma.gamesUpdateInput = {
-      cubeLevel: result.cube.level,
-      cubeOwner: colorToPlayerEnum(result.cube.owner),
-      doublePending: result.doublePending,
-      doubleOfferedBy: result.doubleOfferedBy,
-      cubeHistory: serializeCubeHistory(updatedHistory)
-    };
-
-    gameUpdate.matchLength = resolvedMatchLength;
-
-    let matchHistoryUpdate: CubeHistoryEntry[] | null = null;
-    if (matchRecord) {
-      matchHistoryUpdate = [...matchRecord.cubeHistory, result.historyEntry];
-    }
-
-    if (result.matchUpdate) {
-      gameUpdate.whiteScore = result.matchUpdate.game.whiteScore;
-      gameUpdate.blackScore = result.matchUpdate.game.blackScore;
-      gameUpdate.doublePending = result.matchUpdate.game.doublePending;
-      gameUpdate.doubleOfferedBy = result.matchUpdate.game.doubleOfferedBy;
-      gameUpdate.cubeOwner = result.matchUpdate.game.cubeOwner;
-
-      if (result.matchUpdate.finished) {
-        gameUpdate.status = 'FINISHED';
-        gameUpdate.finishedAt = new Date();
-        const winnerEnum = result.matchUpdate.game.cubeOwner ?? null;
-        if (winnerEnum) {
-          gameUpdate.winner = winnerEnum;
-          const winnerId = winnerEnum === 'WHITE' ? game.player1Id : game.player2Id;
-          if (winnerId) {
-            gameUpdate.winnerId = winnerId;
+            if (aiWinner) break;
+          } else {
+            aiTurnOver = true;
           }
         }
+      } catch (error) {
+        logger.error('AI Move failed', error);
       }
     }
 
-    let nextCurrentPlayerColor: PlayerColor = persistedCurrentPlayer;
-    if (result.matchUpdate?.finished) {
-      nextCurrentPlayerColor = persistedCurrentPlayer;
-    } else if (result.doublePending) {
-      nextCurrentPlayerColor = opponentColor;
-    } else if (action === 'take' || action === 'pass') {
-      nextCurrentPlayerColor = opponentColor;
-    }
-
-    gameUpdate.currentPlayer = nextCurrentPlayerColor === 'white' ? 'WHITE' : 'BLACK';
-
-    await prisma.game.update({
-      where: { id: gameId },
-      data: gameUpdate
-    });
-
-    if (matchRecord) {
-      const matchUpdateData: Prisma.matchesUpdateInput = {
-        cubeHistory: serializeCubeHistory(matchHistoryUpdate ?? matchRecord.cubeHistory)
-      };
-
-      if (result.matchUpdate?.match) {
-        matchUpdateData.state = result.matchUpdate.match.state;
-        matchUpdateData.crawfordUsed = result.matchUpdate.match.crawfordUsed;
-      }
-
-      await prisma.matches.update({
-        where: { id: matchRecord.id },
-        data: matchUpdateData
-      });
-    }
-
-    const snapshotStatus = result.matchUpdate?.finished ? 'FINISHED' : game.status;
-
-    const nextMatchRecord: MatchRecord | null = (() => {
-      if (result.matchUpdate?.match) {
-        return {
-          ...result.matchUpdate.match,
-          cubeHistory: matchHistoryUpdate ?? result.matchUpdate.match.cubeHistory
-        } satisfies MatchRecord;
-      }
-      if (matchRecord) {
-        return {
-          ...matchRecord,
-          cubeHistory: matchHistoryUpdate ?? matchRecord.cubeHistory
-        } satisfies MatchRecord;
-      }
-      return null;
-    })();
-
-    const updatedWhiteScore = result.matchUpdate?.game.whiteScore ?? game.whiteScore ?? 0;
-    const updatedBlackScore = result.matchUpdate?.game.blackScore ?? game.blackScore ?? 0;
-
-    const crawfordAfterAction = evaluateCrawfordState({
-      rules,
-      matchLength: resolvedMatchLength,
-      whiteScore: updatedWhiteScore,
-      blackScore: updatedBlackScore,
-      match: nextMatchRecord
-    });
-
-    await persistGameSnapshot(String(gameId), {
-      board: persistedSnapshot.board,
-      dice: persistedSnapshot.dice,
-      currentPlayer: nextCurrentPlayerColor,
-      status: snapshotStatus,
-      cube: {
-        level: result.cube.level,
-        owner: result.cube.owner,
-        doublePending: result.doublePending,
-        doubleOfferedBy: result.doubleOfferedBy,
-        history: updatedHistory
-      },
-      matchLength: resolvedMatchLength,
-      crawford: crawfordAfterAction
-    });
-
-    const nextState = await this.loadGameState(gameId);
-    if (!nextState) {
-      throw new Error('Failed to load updated cube state');
-    }
-
-    return applyTimerSnapshot(gameId, nextState);
-  }
-
-  static async getGameSummary(gameId: string | number): Promise<GameSummary | null> {
-    const normalizedId = typeof gameId === 'string' ? Number(gameId) : gameId;
-
-    if (!Number.isFinite(normalizedId)) {
-      return null;
-    }
-
-    const state = await this.loadGameState(normalizedId);
-    if (!state) {
-      return null;
-    }
-
-    const hydrated = applyTimerSnapshot(normalizedId, state);
-    return summarizeGameState(hydrated);
-  }
-
-  // Lancer les dés
-  static async rollDice(gameId: number, _playerId: number): Promise<DiceState> {
-    const game = await prisma.game.findUnique({
-      where: { id: gameId }
-    });
-
-    if (!game) {
-      throw new Error('Game not found');
-    }
-
-    if (game.status !== 'playing') {
-      throw new Error('Game is not in playing status');
-    }
-
-    // TODO: Vérifier que c'est le tour du joueur et qu'il peut lancer les dés
-
-    const newDice = BackgammonEngine.rollDice();
-    
-    // TODO: Sauvegarder les dés en base
-
-    return newDice;
-  }
-
-  // Obtenir les mouvements possibles
-  static async getAvailableMoves(gameId: number, _playerId: number): Promise<Move[]> {
-    const gameState = await this.loadGameState(gameId);
-    if (!gameState) {
-      throw new Error('Game not found');
-    }
-
-    const playerColor = gameState.player1.id === _playerId ? 'white' : 'black';
-    
-    if (gameState.currentPlayer !== playerColor) {
-      return []; // Pas de mouvements si ce n'est pas le tour du joueur
-    }
-
-    return BackgammonEngine.calculateAvailableMoves(playerColor, gameState.board, gameState.dice);
-  }
-
-  // Calculer le pip count
-  static async getPipCount(gameId: number): Promise<{ white: number; black: number }> {
-    const gameState = await this.loadGameState(gameId);
-    if (!gameState) {
-      throw new Error('Game not found');
-    }
-
-    return BackgammonEngine.calculatePipCount(gameState.board);
+    return game;
   }
 }

@@ -145,6 +145,21 @@ export function canDouble(
   }
 
   // TODO: Enforce Jacoby, beaver/raccoon restrictions and ownership constraints here.
+
+  // Check cube ownership
+  if (game.cubeOwner && game.cubeOwner.toLowerCase() !== player) {
+    return false;
+  }
+
+  // Check double pending
+  if (game.doublePending) {
+    return false;
+  }
+
+  // Jacoby rule: Gammons/Backgammons only count if cube has been turned.
+  // This doesn't prevent doubling, but it's a rule to be aware of.
+  // The doubling itself is allowed unless other conditions prevent it.
+
   return true;
 }
 

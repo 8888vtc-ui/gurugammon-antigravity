@@ -3,8 +3,11 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Logger } from '../utils/logger';
 
 const execAsync = promisify(exec);
+
+const logger = new Logger('GNUBGRunnerDebug');
 
 export class GNUBGRunnerDebug {
   
@@ -34,17 +37,15 @@ quit
       try {
         // Exécuter GNUBG avec chemin complet Windows
         const command = '"C:\\Program Files (x86)\\gnubg\\gnubg-cli.exe" -t < "' + inputFile + '"';
-        console.log('Exécution de la commande:', command);
+        logger.info('Exécution de la commande', { command });
         
         const { stdout, stderr } = await execAsync(command, { 
           timeout: 10000,
           cwd: tempDir
         });
         
-        console.log('=== STDOUT ===');
-        console.log(stdout);
-        console.log('=== STDERR ===');
-        console.log(stderr);
+        logger.info('=== STDOUT ===', stdout);
+        logger.info('=== STDERR ===', stderr);
         
         return { stdout, stderr };
         
@@ -56,7 +57,7 @@ quit
       }
       
     } catch (error) {
-      console.error('Erreur:', error);
+      logger.error('Erreur', error);
       throw error;
     }
   }

@@ -1,5 +1,4 @@
 // Type declarations for custom modules
-import type { RequestHandler } from 'express';
 import type { Server } from 'http';
 
 declare module 'express-slow-down' {

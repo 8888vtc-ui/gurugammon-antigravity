@@ -48,7 +48,8 @@ type IncomingEnvelope = {
 };
 
 const HEARTBEAT_INTERVAL_MS = 10_000;
-const REPLAY_LIMIT = config.session.replayRetention;
+// Defensive default for replay limit if session config is unavailable
+const REPLAY_LIMIT = config.session?.replayRetention ?? 50;
 
 const connections = new Map<WebSocket, ConnectionState>();
 const matchmakingConnections = new Map<string, Set<WebSocket>>();
@@ -65,7 +66,7 @@ const gameServiceWithSummary = GameService as unknown as {
   getGameSummary?: (id: string | number) => Promise<GameSummary | null>;
 };
 
-const GAME_EVENT_TYPES = new Set<GameEventType>(['join', 'move', 'resign', 'draw', 'cube']);
+const GAME_EVENT_TYPES = new Set<GameEventType>(['join', 'move', 'roll', 'resign', 'draw', 'cube']);
 
 function normalizeGameId(gameId: string): string | number {
   const numericId = Number(gameId);
@@ -98,7 +99,7 @@ function normalizeEventType(value: string): GameEventType | null {
 }
 
 function shouldPersistEvent(message: MessagePayload): boolean {
-  return message.type === 'move' || message.type === 'cube' || message.type === 'resign' || message.type === 'draw';
+  return message.type === 'move' || message.type === 'roll' || message.type === 'cube' || message.type === 'resign' || message.type === 'draw';
 }
 
 function buildTimerSnapshot(gameId: string): GameResumePayload['timer'] | undefined {
@@ -164,15 +165,15 @@ function isAckMessageType(type: string): boolean {
   return type === 'ack' || type === 'game_ack' || type === 'GAME_ACK';
 }
 
-function emitGameEvent(target: WebSocket, origin: ConnectionState, message: MessagePayload, sequence: number | null) {
-  const senderId = origin.userId;
-  const gameId = origin.gameId;
+import { gameEventEmitter, type GameEvent } from '../services/gameEventEmitter';
+
+function emitGameEvent(target: WebSocket, gameId: string, senderId: string | null, message: MessagePayload, sequence: number | null) {
   const payloadRecord = asRecord(message.payload);
   const sequenceFragment = sequence !== null ? { sequence } : undefined;
 
   switch (message.type) {
     case 'join':
-      SocketService.onGameJoin(target, { gameId, userId: senderId }, senderId);
+      SocketService.onGameJoin(target, { gameId, userId: senderId || 'system' }, senderId);
       break;
     case 'move':
       SocketService.onGameMove(
@@ -180,18 +181,30 @@ function emitGameEvent(target: WebSocket, origin: ConnectionState, message: Mess
         {
           gameId,
           move: payloadRecord,
-          userId: senderId,
+          userId: senderId || 'system',
           ...sequenceFragment
         },
         senderId
       );
       break;
+    case 'roll':
+			SocketService.onGameMove(
+				target,
+				{
+					gameId,
+					move: { ...payloadRecord, eventType: 'roll' },
+					userId: senderId || 'system',
+					...sequenceFragment
+				},
+				senderId
+			);
+			break;
     case 'resign':
       SocketService.onGameResign(
         target,
         {
           gameId,
-          userId: senderId,
+          userId: senderId || 'system',
           ...payloadRecord,
           ...sequenceFragment
         },
@@ -203,7 +216,7 @@ function emitGameEvent(target: WebSocket, origin: ConnectionState, message: Mess
         target,
         {
           gameId,
-          userId: senderId,
+          userId: senderId || 'system',
           ...payloadRecord,
           ...sequenceFragment
         },
@@ -218,7 +231,7 @@ function emitGameEvent(target: WebSocket, origin: ConnectionState, message: Mess
         target,
         {
           gameId,
-          userId: senderId,
+          userId: senderId || 'system',
           action,
           ...(summary ? { summary } : {}),
           ...(cube ? { cube } : {}),
@@ -246,8 +259,8 @@ function extractSequence(payload: unknown): number | null {
       typeof payload.sequence !== 'undefined'
         ? payload.sequence
         : typeof payload.lastSequence !== 'undefined'
-        ? payload.lastSequence
-        : undefined;
+          ? payload.lastSequence
+          : undefined;
 
     if (typeof candidate === 'number' && Number.isFinite(candidate)) {
       return candidate;
@@ -276,9 +289,32 @@ async function broadcastGameEvent(sender: WebSocket, message: MessagePayload) {
       continue;
     }
 
-    emitGameEvent(socket, context, enriched, sequence);
+    emitGameEvent(socket, context.gameId, context.userId, enriched, sequence);
   }
 }
+
+// Subscribe to internal game events (e.g. from AI or HTTP controllers)
+gameEventEmitter.on('gameEvent', async (event: GameEvent) => {
+  const { gameId, type, payload, userId } = event;
+
+  try {
+    const sequence = await GameSessionRegistry.recordEvent({
+      gameId,
+      type,
+      payload
+    });
+
+    const message: MessagePayload = { type, payload };
+
+    for (const [socket, context] of connections.entries()) {
+      if (context.gameId === gameId && socket.readyState === WebSocket.OPEN) {
+        emitGameEvent(socket, gameId, userId, message, sequence);
+      }
+    }
+  } catch (error) {
+    wsLogger.error('Failed to broadcast internal game event', { error, gameId, type });
+  }
+});
 
 async function handleGameEvent(socket: WebSocket, message: MessagePayload) {
   await broadcastGameEvent(socket, message);

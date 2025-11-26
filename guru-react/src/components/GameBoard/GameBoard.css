@@ -1,69 +1,121 @@
-/* GameBoard Styles - Classic Backgammon */
+/* GameBoard Styles - Premium Max UI/UX */
+
+:root {
+    /* Palette Premium */
+    --color-wood-dark: #3e2723;
+    --color-wood-medium: #5d4037;
+    --color-wood-light: #8d6e63;
+    --color-wood-border: #281815;
+
+    --color-felt-dark: #1b5e20;
+    --color-felt-light: #2e7d32;
+    --color-felt-texture: rgba(0, 0, 0, 0.15);
+
+    --color-gold: #ffd700;
+    --color-brass: #b5a642;
+    --color-silver: #e0e0e0;
+
+    --shadow-depth: 0 10px 30px rgba(0, 0, 0, 0.5);
+    --shadow-inner: inset 0 2px 10px rgba(0, 0, 0, 0.4);
+
+    /* Checker Colors */
+    --checker-white-base: #f5f5f5;
+    --checker-white-shadow: #dcdcdc;
+    --checker-black-base: #212121;
+    --checker-black-shadow: #000000;
+}
 
 .game-board-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--spacing-xl);
-    padding: var(--spacing-2xl);
+
+    /* Realistic Felt Surface */
+    background-color: var(--color-felt-dark);
+    background-image:
+        radial-gradient(circle at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.4) 100%),
+        url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+    padding: var(--spacing-md);
+    border-radius: 8px;
+    box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* Main board frame */
 .game-board {
     position: relative;
     display: flex;
     flex-direction: column;
-    /* Wood texture background */
-    background: linear-gradient(135deg, #5d4037 0%, #3e2723 50%, #5d4037 100%);
-    border: 8px solid var(--color-wood-border);
-    border-radius: var(--radius-lg);
-    box-shadow:
-        var(--shadow-xl),
-        inset 0 0 60px rgba(0, 0, 0, 0.3),
-        0 0 0 2px var(--color-border-gold);
-    padding: var(--board-padding);
-    gap: var(--spacing-md);
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    background:
+        radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.08), transparent 60%),
+        radial-gradient(circle at 80% 100%, rgba(0, 0, 0, 0.45), transparent 70%),
+        linear-gradient(135deg, var(--color-wood-medium), var(--color-wood-dark));
+    padding: var(--board-padding, var(--spacing-md));
+    border-radius: 16px;
+    border: 10px solid var(--color-wood-border);
+    box-shadow: var(--shadow-depth);
 }
 
+/* Top and bottom rows of 12 points */
 .board-half {
     display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-between;
     gap: var(--spacing-sm);
-    /* Felt playing surface */
-    background: linear-gradient(180deg, #2e7d32 0%, #1b5e20 100%);
-    padding: var(--spacing-md);
-    border-radius: var(--radius-md);
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.board-top,
+.board-bottom {
+    height: calc(var(--point-height) + var(--spacing-md));
 }
 
 .quadrant {
     display: flex;
-    gap: 3px;
+    flex: 1;
+    gap: 2px;
 }
 
 .bar {
     width: var(--bar-width);
-    background: linear-gradient(180deg, var(--color-wood-light) 0%, var(--color-wood-dark) 100%);
-    border-left: 2px solid var(--color-wood-border);
-    border-right: 2px solid var(--color-wood-border);
+    /* Wood texture for bar */
+    background: linear-gradient(90deg, #3e2723 0%, #5d4037 20%, #3e2723 50%, #5d4037 80%, #3e2723 100%);
+    border-left: 4px solid rgba(0, 0, 0, 0.3);
+    border-right: 4px solid rgba(0, 0, 0, 0.3);
     display: flex;
     flex-direction: column;
     justify-content: space-around;
     padding: var(--spacing-sm);
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+    position: relative;
 }
 
-.bar-section {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* Metallic hinge effect on bar */
+.bar::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 60%;
+    height: 40px;
+    background: linear-gradient(90deg, #b5a642 0%, #ffd700 50%, #b5a642 100%);
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    opacity: 0.8;
 }
 
 .bar-checkers {
     display: flex;
     flex-direction: column;
-    gap: 3px;
+    gap: -5px;
+    /* Overlap checkers slightly */
     max-height: 100%;
-    overflow: hidden;
+    overflow: visible;
+    z-index: 10;
+    align-items: center;
 }
 
 .board-middle {
@@ -71,13 +123,13 @@
     justify-content: space-between;
     align-items: center;
     padding: var(--spacing-md) var(--spacing-xl);
-    background: linear-gradient(90deg, var(--color-wood-dark) 0%, var(--color-wood-medium) 50%, var(--color-wood-dark) 100%);
-    border-radius: var(--radius-md);
-    border: 2px solid var(--color-wood-border);
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+    background: linear-gradient(180deg, #2d1b18 0%, #4a3028 50%, #2d1b18 100%);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
 }
 
-/* Off Sections */
+/* Off Sections - Tray Style */
 .off-section {
     position: absolute;
     display: flex;
@@ -85,29 +137,45 @@
     align-items: center;
     gap: var(--spacing-sm);
     padding: var(--spacing-lg);
-    background: linear-gradient(135deg, var(--color-wood-medium), var(--color-wood-dark));
-    border: 3px solid var(--color-wood-border);
-    border-radius: var(--radius-lg);
-    min-width: 140px;
-    box-shadow: var(--shadow-lg);
+    background: linear-gradient(145deg, #3e2723, #2d1b18);
+    border: 4px solid #1a100e;
+    border-radius: 12px;
+    min-width: 150px;
+    box-shadow:
+        0 10px 25px rgba(0, 0, 0, 0.5),
+        inset 0 2px 5px rgba(255, 255, 255, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+}
+
+.off-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
+    border-color: var(--color-gold);
 }
 
 .off-white {
     top: var(--spacing-xl);
-    right: calc(var(--spacing-xl) * -1 - 170px);
+    right: -190px;
 }
 
 .off-black {
     bottom: var(--spacing-xl);
-    right: calc(var(--spacing-xl) * -1 - 170px);
+    right: -190px;
 }
 
 .off-label {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-bold);
-    color: var(--color-border-gold);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-    font-family: var(--font-family-serif);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--color-brass);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+    font-family: 'Cinzel', serif;
+    /* Premium font if available, fallback serif */
+    border-bottom: 1px solid rgba(181, 166, 66, 0.3);
+    padding-bottom: 4px;
+    width: 100%;
+    text-align: center;
 }
 
 .off-checkers {
@@ -116,114 +184,129 @@
     gap: 4px;
     justify-content: center;
     align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 8px;
+    width: 100%;
+    min-height: 60px;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
 }
 
-.off-count {
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-bold);
-    color: var(--color-warning);
-}
-
-/* Current Player Indicator */
+/* Current Player Indicator - Badge Style */
 .current-player-indicator {
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
-    padding: var(--spacing-md) var(--spacing-xl);
-    background: linear-gradient(135deg, var(--color-wood-medium), var(--color-wood-dark));
-    border: 2px solid var(--color-border-gold);
-    border-radius: var(--radius-full);
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-bold);
-    box-shadow: var(--shadow-lg);
-    font-family: var(--font-family-serif);
-    color: var(--color-border-gold);
-}
-
-.indicator-dot {
-    width: 16px;
-    height: 16px;
-    border-radius: var(--radius-full);
-    border: 2px solid rgba(0, 0, 0, 0.5);
-    animation: pulse 2s ease-in-out infinite;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-}
-
-.indicator-dot.white {
-    background: var(--color-checker-white);
-}
-
-.indicator-dot.black {
-    background: var(--color-checker-black);
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        opacity: 1;
-        transform: scale(1);
-    }
-
-    50% {
-        opacity: 0.8;
-        transform: scale(1.1);
-    }
-}
-
-/* Checker Styles */
-.checker {
-    width: var(--checker-size);
-    height: var(--checker-size);
-    border-radius: var(--radius-full);
-    border: 3px solid;
-    box-shadow: var(--shadow-checker);
-    transition: all var(--transition-fast);
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #2d1b18 0%, #3e2723 100%);
+    border: 1px solid var(--color-brass);
+    border-radius: 30px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+    font-family: 'Cinzel', serif;
+    color: var(--color-silver);
     position: relative;
+    overflow: hidden;
 }
 
-.checker::before {
+.current-player-indicator::before {
     content: '';
     position: absolute;
-    top: 20%;
-    left: 20%;
-    right: 20%;
-    bottom: 20%;
-    border-radius: var(--radius-full);
-    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4), transparent);
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), transparent);
     pointer-events: none;
 }
 
-.checker-white {
-    background: radial-gradient(circle at 30% 30%, #ffffff, #e0e0e0);
-    border-color: var(--color-checker-white-border);
+.indicator-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.indicator-dot.white {
+    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+}
+
+.indicator-dot.black {
+    background: radial-gradient(circle at 30% 30%, #444, #000);
+}
+
+/* Checker Styles - Ultra Realistic */
+.checker {
+    width: var(--checker-size);
+    height: var(--checker-size);
+    border-radius: 50%;
+    position: relative;
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    cursor: grab;
+    z-index: 1;
+}
+
+.checker:active {
+    cursor: grabbing;
+    transform: scale(1.05);
+}
+
+/* 3D Shape & Shadow */
+.checker::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 50%;
     box-shadow:
-        var(--shadow-checker),
-        inset 0 2px 4px rgba(255, 255, 255, 0.8),
-        inset 0 -2px 4px rgba(0, 0, 0, 0.2);
+        inset 0 0 0 1px rgba(255, 255, 255, 0.1),
+        /* Rim highlight */
+        inset 0 -4px 6px rgba(0, 0, 0, 0.4),
+        /* Bottom shadow for bevel */
+        0 4px 6px rgba(0, 0, 0, 0.4);
+    /* Drop shadow */
+}
+
+/* Inner indentation */
+.checker::before {
+    content: '';
+    position: absolute;
+    top: 15%;
+    left: 15%;
+    right: 15%;
+    bottom: 15%;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.1) 0%, rgba(255, 255, 255, 0.1) 100%);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.checker-white {
+    background: radial-gradient(circle at 30% 30%, #ffffff 0%, #e0e0e0 40%, #bdbdbd 100%);
+    border: 1px solid #9e9e9e;
 }
 
 .checker-black {
-    background: radial-gradient(circle at 30% 30%, #424242, #212121);
-    border-color: var(--color-checker-black-border);
-    box-shadow:
-        var(--shadow-checker),
-        inset 0 2px 4px rgba(255, 255, 255, 0.1),
-        inset 0 -2px 4px rgba(0, 0, 0, 0.5);
+    background: radial-gradient(circle at 30% 30%, #616161 0%, #212121 40%, #000000 100%);
+    border: 1px solid #000000;
 }
 
 .checker-small {
     width: 2rem;
     height: 2rem;
-    border-width: 2px;
 }
 
 .checker:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    transform: translateY(-4px) scale(1.02);
+    z-index: 100;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
 }
 
-/* Responsive Design */
+/* Responsive Design Updates */
 @media (max-width: 1400px) {
     :root {
         --checker-size: 2.5rem;
@@ -231,8 +314,9 @@
         --point-height: 10rem;
     }
 
-    .off-section {
-        min-width: 120px;
+    .off-white,
+    .off-black {
+        right: -150px;
     }
 }
 
@@ -249,6 +333,17 @@
 
     .game-board {
         max-width: 100%;
+        border-width: 8px;
+    }
+
+    .off-section {
+        min-width: 100px;
+        padding: var(--spacing-md);
+    }
+
+    .off-white,
+    .off-black {
+        right: -120px;
     }
 }
 
@@ -261,7 +356,7 @@
     }
 
     .game-board-container {
-        padding: var(--spacing-sm);
+        padding: var(--spacing-xs);
     }
 
     .game-board {
@@ -283,6 +378,7 @@
         width: 100%;
         flex-direction: row;
         justify-content: space-between;
+        transform: none !important;
     }
 
     .off-white,
@@ -290,6 +386,13 @@
         top: auto;
         right: auto;
         bottom: auto;
+    }
+
+    .off-checkers {
+        min-height: 40px;
+        width: auto;
+        flex: 1;
+        margin-left: 10px;
     }
 }
 
@@ -301,13 +404,15 @@
     }
 
     .game-board-container {
-        padding: var(--spacing-xs);
+        padding: 4px;
         gap: var(--spacing-md);
     }
 
     .current-player-indicator {
         flex-direction: row;
-        padding: var(--spacing-sm) var(--spacing-md);
-        font-size: var(--font-size-sm);
+        padding: 8px 16px;
+        font-size: 0.9rem;
+        width: 100%;
+        justify-content: center;
     }
 }

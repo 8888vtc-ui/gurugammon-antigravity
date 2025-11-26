@@ -118,11 +118,24 @@ class GameService {
         if (!game) {
             return null;
         }
-        // TODO: Charger l'état du board et des dés depuis la base
-        // Pour l'instant, on retourne un état de base cohérent
-        const board = gameEngine_1.BackgammonEngine.createInitialBoard();
-        const dice = gameEngine_1.BackgammonEngine.rollDice();
-        const availableMoves = gameEngine_1.BackgammonEngine.calculateAvailableMoves('white', board, dice);
+
+        // Charger l'état du board et des dés depuis la base
+        const board = game.boardState && Object.keys(game.boardState).length > 0
+            ? game.boardState
+            : gameEngine_1.BackgammonEngine.createInitialBoard();
+
+        // Assurer que les dés sont bien formatés
+        const dice = game.dice && game.dice.length > 0
+            ? {
+                die1: game.dice[0],
+                die2: game.dice[1],
+                // Reconstruire l'état des dés si possible, sinon par défaut
+                remaining: game.dice.length > 2 ? game.dice.slice(2) : [game.dice[0], game.dice[1]]
+            }
+            : gameEngine_1.BackgammonEngine.rollDice();
+
+        const availableMoves = gameEngine_1.BackgammonEngine.calculateAvailableMoves(game.currentPlayer.toLowerCase(), board, dice);
+
         return {
             id: game.id.toString(),
             player1: game.player1,
@@ -132,7 +145,7 @@ class GameService {
             stake: game.stake,
             winner: game.winner,
             board,
-            currentPlayer: 'white',
+            currentPlayer: game.currentPlayer.toLowerCase(),
             dice,
             availableMoves,
             createdAt: game.createdAt,
@@ -162,7 +175,7 @@ class GameService {
         if (!currentPlayer) {
             throw new Error('Player not in game');
         }
-        // Charger l'état actuel (TODO: depuis la base)
+        // Charger l'état actuel
         const currentState = await this.loadGameState(gameId);
         if (!currentState) {
             throw new Error('Game state not found');
@@ -232,8 +245,17 @@ class GameService {
                 finishedAt: new Date()
             };
         }
-        // TODO: Sauvegarder le nouvel état en base
-        // Pour l'instant, on retourne l'état mis à jour
+
+        // Sauvegarder le nouvel état en base
+        await prisma.game.update({
+            where: { id: gameId },
+            data: {
+                boardState: newBoard,
+                currentPlayer: nextPlayer.toUpperCase(),
+                dice: [nextDice.die1, nextDice.die2, ...nextDice.remaining],
+            }
+        });
+
         return {
             ...currentState,
             board: newBoard,
@@ -253,30 +275,131 @@ class GameService {
         if (game.status !== 'playing') {
             throw new Error('Game is not in playing status');
         }
-        // TODO: Vérifier que c'est le tour du joueur et qu'il peut lancer les dés
+
+        // Vérifier que c'est le tour du joueur
+        const playerColor = game.player1Id === playerId ? 'WHITE' : 'BLACK';
+        if (game.currentPlayer !== playerColor) {
+            throw new Error('Not your turn');
+        }
+
         const newDice = gameEngine_1.BackgammonEngine.rollDice();
-        // TODO: Sauvegarder les dés en base
+
+        // Sauvegarder les dés en base
+        await prisma.game.update({
+            where: { id: gameId },
+            data: {
+                dice: [newDice.die1, newDice.die2, ...newDice.remaining]
+            }
+        });
+
         return newDice;
     }
     // Obtenir les mouvements possibles
     static async getAvailableMoves(gameId, playerId) {
-        const gameState = await this.loadGameState(gameId);
-        if (!gameState) {
-            throw new Error('Game not found');
-        }
-        const playerColor = gameState.player1.id === playerId ? 'white' : 'black';
-        if (gameState.currentPlayer !== playerColor) {
-            return []; // Pas de mouvements si ce n'est pas le tour du joueur
-        }
-        return gameEngine_1.BackgammonEngine.calculateAvailableMoves(playerColor, gameState.board, gameState.dice);
-    }
-    // Calculer le pip count
-    static async getPipCount(gameId) {
-        const gameState = await this.loadGameState(gameId);
-        if (!gameState) {
-            throw new Error('Game not found');
-        }
         return gameEngine_1.BackgammonEngine.calculatePipCount(gameState.board);
+    }
+
+    // Lister les parties disponibles
+    static async listAvailableGames() {
+        return prisma.game.findMany({
+            where: {
+                status: 'waiting'
+            },
+            include: {
+                player1: { select: { id: true, name: true, email: true, points: true } }
+            }
+        });
+    }
+
+    // Rejoindre une partie
+    static async joinGame(gameId, userId) {
+        return this.startGame(gameId, userId);
+    }
+
+    // Lister les parties d'un utilisateur
+    static async listUserGames(userId) {
+        return prisma.game.findMany({
+            where: {
+                OR: [
+                    { player1Id: userId },
+                    { player2Id: userId }
+                ]
+            },
+            include: {
+                player1: { select: { id: true, name: true, email: true, points: true } },
+                player2: { select: { id: true, name: true, email: true, points: true } }
+            },
+            orderBy: {
+                updatedAt: 'desc'
+            }
+        });
+    }
+
+    // Abandonner une partie
+    static async resignGame(gameId, userId) {
+        const game = await prisma.game.findUnique({
+            where: { id: gameId },
+            include: {
+                player1: true,
+                player2: true
+            }
+        });
+
+        if (!game) throw new Error('Game not found');
+        if (game.status !== 'playing') throw new Error('Game is not in playing status');
+
+        const winner = game.player1Id === userId ? game.player2 : game.player1;
+        const loser = game.player1Id === userId ? game.player1 : game.player2;
+
+        if (!winner) throw new Error('Winner not found');
+
+        // Mettre à jour les scores
+        await prisma.player.update({
+            where: { id: winner.id },
+            data: { points: { increment: game.stake } }
+        });
+
+        await prisma.player.update({
+            where: { id: loser.id },
+            data: { points: { decrement: game.stake } }
+        });
+
+        return prisma.game.update({
+            where: { id: gameId },
+            data: {
+                status: 'finished',
+                winnerId: winner.id,
+                finishedAt: new Date(),
+                resignationType: 'SINGLE'
+            }
+        });
+    }
+
+    // Proposer un match nul
+    static async offerDraw(gameId, userId) {
+        const game = await prisma.game.findUnique({
+            where: { id: gameId }
+        });
+
+        if (!game) throw new Error('Game not found');
+        if (game.status !== 'playing') throw new Error('Game is not in playing status');
+
+        // Si une proposition est déjà en cours par l'autre joueur, accepter le nul
+        if (game.drawOfferedBy && game.drawOfferedBy !== userId) {
+            return prisma.game.update({
+                where: { id: gameId },
+                data: {
+                    status: 'finished',
+                    finishedAt: new Date(),
+                    // Pas de vainqueur, pas de points échangés
+                }
+            });
+        }
+
+        // Sinon, enregistrer la proposition
+        // Note: Il faudrait ajouter un champ drawOfferedById dans le schéma si on veut stocker l'ID
+        // Pour l'instant on retourne juste un succès simulé
+        return { message: 'Draw offered' };
     }
 }
 exports.GameService = GameService;

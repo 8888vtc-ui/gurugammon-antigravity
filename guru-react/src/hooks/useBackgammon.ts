@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { INITIAL_BOARD } from '../types';
 import type { GameState } from '../types';
 import { apiClient } from '../api/client';
+import { useGameSocket, type SocketMessage } from './useGameSocket';
 
 type BackendBoardState = {
   positions: number[];
@@ -93,6 +94,29 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
 
   const [gameState, setGameState] = useState<GameState>(createLocalInitialState);
   const [error, setError] = useState<string | null>(null);
+
+  const handleSocketEvent = useCallback((message: SocketMessage) => {
+    if (message.type === 'GAME_MOVE') {
+      const payload = message.payload as any;
+      const move = payload && payload.move ? payload.move : payload;
+
+      if (move && move.board && move.dice && move.currentPlayer) {
+        const isRollEvent = move.eventType === 'roll';
+        if (isRollEvent) {
+          // Roll-specific hook: useful for analytics or debugging
+          console.debug('WS roll event', move);
+        }
+        const backendGame: BackendGameState = {
+          board: move.board,
+          dice: move.dice,
+          currentPlayer: move.currentPlayer
+        };
+        setGameState(mapBackendGameToLocal(backendGame));
+      }
+    }
+  }, []);
+
+  useGameSocket(gameId, handleSocketEvent);
 
   // Charger l'état initial depuis le backend si un gameId est fourni
   useEffect(() => {
@@ -258,27 +282,98 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
         return;
       }
 
-      // Mode local (comportement précédent)
+      // Mode local (comportement précédent amélioré)
       setGameState(prev => {
         // Si aucun dé, on ne fait rien
         if (prev.dice.length === 0) return prev;
 
         const { board, currentPlayer, selectedPoint } = prev;
         const clickedPointCount = board.points[pointIndex];
+        const direction = currentPlayer === 'white' ? -1 : 1;
+        const barCount = currentPlayer === 'white' ? board.whiteBar : board.blackBar;
+
+        // Helper pour vérifier si une destination est valide (pas bloquée par l'adversaire)
+        const isDestinationBlocked = (idx: number) => {
+          if (idx < 0 || idx > 23) return false; // Bearing off logic separate
+          const count = board.points[idx];
+          // Bloqué si plus de 1 pion adverse
+          if (currentPlayer === 'white') return count < -1; // Noir a -2, -3...
+          return count > 1; // Blanc a 2, 3...
+        };
 
         // 1. Sélectionner un pion
         if (selectedPoint === null) {
+          // Cas spécial : Si des pions sont sur la barre, on DOIT les jouer
+          if (barCount > 0) {
+            // Simplification : On considère que si bar > 0, on a automatiquement "sélectionné" la barre.
+            // On vérifie juste si pointIndex est une destination valide pour un dé.
+
+            const entryPoint = currentPlayer === 'white' ? 24 : -1; // Point virtuel de départ
+            const validDiceIndex = prev.dice.findIndex(die => {
+              const dest = entryPoint + (die * direction);
+              return dest === pointIndex && !isDestinationBlocked(dest);
+            });
+
+            if (validDiceIndex !== -1) {
+              // On joue directement depuis la barre
+              // Mise à jour du board
+              const newPoints = [...board.points];
+              let newWhiteBar = board.whiteBar;
+              let newBlackBar = board.blackBar;
+              let newWhiteOff = board.whiteOff;
+              let newBlackOff = board.blackOff;
+
+              // Enlever de la barre
+              if (currentPlayer === 'white') newWhiteBar--;
+              else newBlackBar--;
+
+              // Arrivée
+              const targetCount = newPoints[pointIndex];
+              // Hit ?
+              const isHit = (currentPlayer === 'white' && targetCount === -1) || (currentPlayer === 'black' && targetCount === 1);
+
+              if (isHit) {
+                newPoints[pointIndex] = currentPlayer === 'white' ? 1 : -1;
+                if (currentPlayer === 'white') newBlackBar++;
+                else newWhiteBar++;
+              } else {
+                newPoints[pointIndex] += (currentPlayer === 'white' ? 1 : -1);
+              }
+
+              const newDice = [...prev.dice];
+              newDice.splice(validDiceIndex, 1);
+              const nextPlayer = newDice.length === 0 ? (currentPlayer === 'white' ? 'black' : 'white') : currentPlayer;
+
+              return {
+                ...prev,
+                board: {
+                  ...board,
+                  points: newPoints,
+                  whiteBar: newWhiteBar,
+                  blackBar: newBlackBar,
+                  whiteOff: newWhiteOff,
+                  blackOff: newBlackOff
+                },
+                dice: newDice,
+                currentPlayer: nextPlayer,
+                lastMove: { from: -1, to: pointIndex }, // -1 pour indiquer barre
+                moveHistory: [...prev.moveHistory, { player: currentPlayer, from: -1, to: pointIndex, notation: `Bar/${pointIndex + 1}` }]
+              };
+            }
+            return prev;
+          }
+
+          // Cas normal (pas de barre)
           // Vérifier si le point appartient au joueur courant
           const isPlayerPiece = currentPlayer === 'white' ? clickedPointCount > 0 : clickedPointCount < 0;
 
           if (isPlayerPiece) {
-            // Calculer les mouvements possibles basiques avec les dés disponibles
-            // Blanc joue vers 1 (indices décroissants), Noir vers 24 (indices croissants)
-            const direction = currentPlayer === 'white' ? -1 : 1;
-
             const possibleDestinations = [...new Set(prev.dice)]
-              .map(die => pointIndex + die * direction)
-              .filter(dest => dest >= 0 && dest <= 23); // TODO: Gérer la sortie (bearing off)
+              .map(die => pointIndex + (die * direction))
+              .filter(dest => {
+                if (dest < 0 || dest > 23) return false;
+                return !isDestinationBlocked(dest);
+              });
 
             return {
               ...prev,
@@ -296,24 +391,28 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
           const dieIndex = prev.dice.findIndex(d => d === moveDistance);
 
           if (dieIndex === -1) {
-            // Fallback si mouvement combiné ou autre (simplifié ici)
             return { ...prev, selectedPoint: null, validMoves: [] };
           }
 
           // Mettre à jour le board
           const newPoints = [...board.points];
+          let newWhiteBar = board.whiteBar;
+          let newBlackBar = board.blackBar;
+
           // Enlever du départ
           newPoints[selectedPoint] = currentPlayer === 'white' ? newPoints[selectedPoint] - 1 : newPoints[selectedPoint] + 1;
 
-          // Ajouter à l'arrivée (Gérer la prise/hit plus tard)
+          // Ajouter à l'arrivée
           const targetCount = newPoints[pointIndex];
-          // Si hit
-          if ((currentPlayer === 'white' && targetCount === -1) || (currentPlayer === 'black' && targetCount === 1)) {
-            // Hit logic here (envoyer à la barre)
+          // Hit ?
+          const isHit = (currentPlayer === 'white' && targetCount === -1) || (currentPlayer === 'black' && targetCount === 1);
+
+          if (isHit) {
             newPoints[pointIndex] = currentPlayer === 'white' ? 1 : -1;
-            // TODO: Incrémenter bar adverse
+            if (currentPlayer === 'white') newBlackBar++;
+            else newWhiteBar++;
           } else {
-            newPoints[pointIndex] = currentPlayer === 'white' ? newPoints[pointIndex] + 1 : newPoints[pointIndex] - 1;
+            newPoints[pointIndex] += (currentPlayer === 'white' ? 1 : -1);
           }
 
           const newDice = [...prev.dice];
@@ -327,7 +426,7 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
 
           return {
             ...prev,
-            board: { ...board, points: newPoints },
+            board: { ...board, points: newPoints, whiteBar: newWhiteBar, blackBar: newBlackBar },
             dice: newDice,
             currentPlayer: nextPlayer,
             selectedPoint: null,

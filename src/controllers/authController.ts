@@ -4,7 +4,7 @@ import jwt, { type Secret } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { randomUUID, createHash } from 'crypto';
 import { z } from 'zod';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { config } from '../config';
 import { Logger } from '../utils/logger';
 

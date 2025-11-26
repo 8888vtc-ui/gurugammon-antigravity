@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
+import { SubscriptionPlan, SubscriptionStatus, GameMode, GameStatus, Player } from '@prisma/client';
 
 type UserRecord = {
   id: string;
@@ -8,6 +8,8 @@ type UserRecord = {
   password: string | null;
   createdAt: Date;
   updatedAt: Date;
+  eloRating: number;
+  subscriptionType: string;
 };
 
 type AnalysisQuotaRecord = {
@@ -44,6 +46,31 @@ type UserSessionRecord = {
   expiresAt: Date;
   createdAt: Date;
   updatedAt: Date;
+};
+
+type GameRecord = {
+  id: string;
+  whitePlayerId: string;
+  blackPlayerId: string | null;
+  gameMode: GameMode;
+  status: GameStatus;
+  stake: number;
+  winner: Player | null;
+  boardState: any;
+  currentPlayer: Player;
+  dice: number[];
+  cubeLevel: number;
+  cubeOwner: Player | null;
+  matchLength: number | null;
+  whiteScore: number;
+  blackScore: number;
+  createdAt: Date;
+  updatedAt: Date;
+  startedAt: Date | null;
+  finishedAt: Date | null;
+  timeControlPreset: any;
+  whiteTimeRemainingMs: number | null;
+  blackTimeRemainingMs: number | null;
 };
 
 type AnalysisQuotaWhereUnique = {
@@ -116,16 +143,14 @@ const analysisQuotas = new Map<string, AnalysisQuotaRecord>();
 const iaQuotas = new Map<string, IAQuotaRecord>();
 const subscriptions = new Map<string, SubscriptionRecord>();
 const userSessions = new Map<string, UserSessionRecord>();
+const games = new Map<string, GameRecord>();
 
 const cloneUser = (record: UserRecord | null): UserRecord | null => {
   if (!record) {
     return null;
   }
   return {
-    id: record.id,
-    email: record.email,
-    username: record.username,
-    password: record.password,
+    ...record,
     createdAt: new Date(record.createdAt.getTime()),
     updatedAt: new Date(record.updatedAt.getTime())
   };
@@ -158,6 +183,19 @@ const cloneIAQuota = (record: IAQuotaRecord | null): IAQuotaRecord | null => {
     premiumQuota: record.premiumQuota,
     extrasUsed: record.extrasUsed,
     resetAt: new Date(record.resetAt.getTime())
+  };
+};
+
+const cloneGame = (record: GameRecord | null): GameRecord | null => {
+  if (!record) return null;
+  return {
+    ...record,
+    boardState: JSON.parse(JSON.stringify(record.boardState)),
+    dice: [...record.dice],
+    createdAt: new Date(record.createdAt.getTime()),
+    updatedAt: new Date(record.updatedAt.getTime()),
+    startedAt: record.startedAt ? new Date(record.startedAt.getTime()) : null,
+    finishedAt: record.finishedAt ? new Date(record.finishedAt.getTime()) : null
   };
 };
 
@@ -354,7 +392,9 @@ const prismaUsers = {
       username: data.username ?? null,
       password: data.password ?? null,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      eloRating: 1500,
+      subscriptionType: 'FREE'
     };
 
     users.set(id, record);
@@ -517,6 +557,55 @@ const prismaUserSession = {
   }
 };
 
+const prismaGames = {
+  async create({ data }: { data: any }) {
+    const id = data.id ?? uuidv4();
+    const record: GameRecord = {
+      ...data,
+      id,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      startedAt: data.startedAt ?? null,
+      finishedAt: null,
+      whiteScore: 0,
+      blackScore: 0,
+      winner: null,
+      cubeLevel: 1,
+      cubeOwner: null,
+      cubeHistory: [],
+      matchLength: data.matchLength ?? null,
+      timeControlPreset: data.timeControlPreset ?? null,
+      whiteTimeRemainingMs: data.whiteTimeRemainingMs ?? null,
+      blackTimeRemainingMs: data.blackTimeRemainingMs ?? null
+    };
+    games.set(id, record);
+    return cloneGame(record);
+  },
+  async findUnique({ where, include }: { where: { id: string }, include?: any }) {
+    const record = games.get(where.id) ?? null;
+    if (!record) return null;
+    const result: any = cloneGame(record);
+
+    if (include?.whitePlayer) {
+      result.whitePlayer = await prismaUsers.findUnique({ where: { id: record.whitePlayerId } });
+    }
+    if (include?.blackPlayer && record.blackPlayerId) {
+      result.blackPlayer = await prismaUsers.findUnique({ where: { id: record.blackPlayerId } });
+    }
+    return result;
+  },
+  async update({ where, data }: { where: { id: string }, data: any }) {
+    const record = games.get(where.id);
+    if (!record) throw new Error('Game not found');
+
+    // Simple shallow merge
+    Object.assign(record, data);
+    record.updatedAt = new Date();
+    games.set(where.id, record);
+    return cloneGame(record);
+  }
+};
+
 type PrismaMock = {
   users: typeof prismaUsers;
   analysisQuota: typeof prismaAnalysisQuota;
@@ -524,6 +613,7 @@ type PrismaMock = {
   iAQuota: typeof prismaIAQuota;
   subscriptions: typeof prismaSubscriptions;
   userSession: typeof prismaUserSession;
+  games: typeof prismaGames;
   $transaction: <T>(
     arg1: ((client: PrismaMock) => Promise<T> | T) | Array<() => Promise<unknown> | unknown>,
     options?: unknown
@@ -537,6 +627,7 @@ export const prisma: PrismaMock = {
   iAQuota: prismaIAQuota,
   subscriptions: prismaSubscriptions,
   userSession: prismaUserSession,
+  games: prismaGames,
   async $transaction<T>(
     arg1: ((client: PrismaMock) => Promise<T> | T) | Array<() => Promise<unknown> | unknown>,
     _options?: unknown
@@ -561,6 +652,7 @@ export const resetDatabase = () => {
   iaQuotas.clear();
   subscriptions.clear();
   userSessions.clear();
+  games.clear();
 };
 
 export const seedUser = (data: UserCreateInput & { password: string }) => {
@@ -571,7 +663,9 @@ export const seedUser = (data: UserCreateInput & { password: string }) => {
     username: data.username ?? null,
     password: data.password,
     createdAt: new Date(),
-    updatedAt: new Date()
+    updatedAt: new Date(),
+    eloRating: 1500,
+    subscriptionType: 'FREE'
   };
 
   users.set(id, record);

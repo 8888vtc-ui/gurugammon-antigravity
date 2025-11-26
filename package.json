@@ -5,7 +5,6 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "dev:bgammon": "go run ./bgammon-server/main.go --dev --port=8080",
     "build": "node ./node_modules/typescript/bin/tsc --project tsconfig.prod.json",
     "postbuild": "node scripts/copy-js.js",
     "build:prod": "tsc --noEmit false --skipLibCheck || echo 'TypeScript build completed with warnings'",

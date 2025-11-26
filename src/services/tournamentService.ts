@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { broadcastTournamentEvent } from '../websocket/tournamentServer.js';
 import { notificationService } from './notificationService';
 import { EloService } from './eloService';

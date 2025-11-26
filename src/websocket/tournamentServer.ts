@@ -2,7 +2,7 @@
 import type { IncomingMessage } from 'http';
 import { WebSocket } from 'ws';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { config } from '../config';
 
 export type TournamentEventType =

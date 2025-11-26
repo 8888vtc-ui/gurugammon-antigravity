@@ -176,3 +176,280 @@ Les prompts sont organisés par priorités :
 - Utilise ces prompts **un par un** ou par petits groupes (2–3) pour garder le contrôle sur les changements.
 - Après chaque prompt appliqué, exécute les tests et vérifie le comportement en local.
 - Garde ce fichier à jour en cochant/annotant les prompts déjà traités ou en ajoutant des variantes plus spécifiques si besoin.
+
+---
+
+## Phase 6 – Meta-prompt d’audit global & roadmap (GPT 5.1)
+
+Ce bloc est un **meta-prompt** à utiliser avec une IA plus puissante (par ex. GPT 5.1) pour réaliser un audit complet (produit + backend + frontend + DevOps) et produire une feuille de route détaillée (prompts) à exécuter ensuite.
+
+### META-PROMPT À DONNER À UNE AUTRE IA (EN)
+
+> You are a **principal engineer / architect / product designer** tasked with doing a **full audit and roadmap** for a backgammon SaaS app.
+>
+> You will work **inside my repo**, and your job is NOT to implement changes, but to:
+> - Understand the **full concept** (product, gameplay, AI, UX, monetization).
+> - Analyze **backend, frontend, and infrastructure** at a high level.
+> - Identify missing pieces / inconsistencies.
+> - Produce a **prioritized list of ~50 prompts/tasks** I can give to **another coding assistant** to execute.
+>
+> Do not assume anything is “out of scope”: you are allowed to consider product, UX, architecture, and DevOps.
+>
+> ---
+>
+> ## 1. Project context
+>
+> - OS used by developer: Windows.
+> - Monorepo root (on my machine):
+>   `C:\Users\8888v\CascadeProjects\gurugmon-v2`  
+> - **Backend project:**
+>   `C:\Users\8888v\CascadeProjects\gurugmon-v2\gurugammon-antigravity`  
+> - **Frontend (React) project:**
+>   `C:\Users\8888v\CascadeProjects\gurugmon-v2\gurugammon-antigravity\guru-react`
+>
+> This repo was originally built around a more complex Vue frontend and then migrated toward a React/Vite frontend (`guru-react`). Some Jest tests still reference old Vue files.
+>
+> ### Product concept (what the app is about)
+>
+> - Online backgammon platform (“GammonGuru”).
+> - Key features:
+>   - Human vs Human games (online matchmaking).
+>   - Human vs AI games using GNUBG or similar backgammon engine.
+>   - Tournaments and leaderboards.
+>   - Rating / Elo, time controls, match settings (Crawford, cube, etc.).
+>   - AI coach / analysis features: suggestions and evaluations of positions.
+>   - Modern, premium‑looking board UI with dice, doubling cube, move history, and chat.
+>
+> Backend exposes APIs (REST) and WebSockets for real‑time updates; frontend is a React SPA consuming those.
+>
+> ---
+>
+> ## 2. Tech stack (high level)
+>
+> **Backend:**
+> - Node.js + Express + TypeScript.
+> - Prisma ORM with PostgreSQL (`prisma/schema.prisma`).
+> - WebSockets via `ws` (`src/websocket/server.ts`).
+> - AI integration via `src/services/aiService.ts` and `src/providers/gnubgProvider.ts`.
+> - Game engine / rules in `src/services/gameEngine.ts` and `src/services/gameService.ts`.
+> - Rate limiting, security middlewares (`src/security-middleware.ts`, `src/middleware/rateLimiter.ts`).
+> - Metrics & monitoring code under `src/metrics/`.
+>
+> **Frontend:**
+> - React + Vite (TypeScript) in `guru-react`.
+> - Main app entry: `guru-react/src/App.tsx`.
+> - Game board UI: `guru-react/src/components/GameBoard/...` (Board, Points, Dice, DoublingCube CSS).
+> - Game state hook: `guru-react/src/hooks/useBackgammon.ts`.
+> - WebSocket hook: `guru-react/src/hooks/useGameSocket.ts`.
+> - API client: `guru-react/src/api/client.ts`.
+>
+> **Tests:**
+> - Jest tests for backend logic (game, tournaments, quotas, WebSocket).
+> - Some legacy frontend Jest tests that still reference `frontend/src` and Vue components, which no longer exist in the React app.
+>
+> ---
+>
+> ## 3. Current code status (as far as I know)
+>
+> You should **verify** these points by reading the code:
+>
+> - Backend TypeScript builds cleanly using `tsconfig.prod.json`.
+> - Prisma client and JSON types have been cleaned up in `src/services/gameService.ts`.
+> - `GameService` supports:
+>   - `createGame` with `GameMode.AI_VS_PLAYER`.
+>   - `rollDice` and `makeMove` with AI auto‑move for AI vs Player.
+> - WebSocket server:
+>   - Receives internal game events via `gameEventEmitter`.
+>   - Emits:
+>     - `'join'` → `SocketService.onGameJoin` → `GAME_JOIN`.
+>     - `'move'` → `SocketService.onGameMove` → `GAME_MOVE`.
+>     - `'roll'` → `SocketService.onGameMove` with `move.eventType = 'roll'`.
+> - Frontend:
+>   - `useGameSocket` connects to `/ws/game?gameId=...` and sends auth as `sec-websocket-protocol: Bearer <token>`.
+>   - `useBackgammon`:
+>     - If `gameId` is present, loads initial state from `/api/games/:id/status`.
+>     - Sends roll/move over REST.
+>     - Subscribes to `GAME_MOVE` and maps payload `move.board` + `move.dice` into local state.
+>     - Detects roll events via `move.eventType === 'roll'` (currently logs them).
+> - Some Jest tests fail locally because:
+>   - `DATABASE_URL` is not set (no local DB).
+>   - Legacy Vue tests reference paths like `../frontend/src/components/DoublingCube.vue` and `@/router`.
+>   - Quota and WS tests expect certain behavior that might have drifted.
+>
+> You should treat these as **signals** to check whether the tests themselves are still relevant.
+>
+> ---
+>
+> ## 4. Your tasks
+>
+> ### 4.1. Understand the full product & architecture
+>
+> - Scan backend:
+>   - `src/server.ts`
+>   - `src/services/*.ts`
+>   - `src/controllers/*.ts`
+>   - `src/routes/*.ts`
+>   - `src/websocket/server.ts`
+>   - `prisma/schema.prisma`
+> - Scan frontend (React):
+>   - `guru-react/src/App.tsx`
+>   - `guru-react/src/hooks/useBackgammon.ts`
+>   - `guru-react/src/hooks/useGameSocket.ts`
+>   - `guru-react/src/components/GameBoard/*`
+>   - Any other important UI pieces (chat, move history, etc.).
+> - Understand how:
+>   - AI vs Player game is created.
+>   - Dice are rolled and moves are applied.
+>   - AI moves are requested and applied.
+>   - WebSockets are used for real‑time updates.
+> - Understand user experience flow for a new user:
+>   - Registration/login.
+>   - Creating a game.
+>   - Playing vs AI.
+>   - Seeing analysis/coach features.
+>   - Tournaments/leaderboards (at least at a conceptual level).
+>
+> ### 4.2. Critique / GAP analysis
+>
+> Produce a written **audit** (not code) covering:
+>
+> - **Backend architecture:**
+>   - Are services and controllers layered cleanly?
+>   - Is game logic placed in the right layer vs controllers/DB?
+>   - How clean/maintainable is the WebSocket + session + replay system?
+>   - Any obvious performance or scalability concerns?
+> - **Database / Prisma:**
+>   - Schema design (games, users, tournaments, quotas, etc.).
+>   - Any obvious normalization or indexing issues.
+>   - Risky JSON usage patterns.
+> - **Frontend architecture (React):**
+>   - Is state management around `useBackgammon` solid?
+>   - How is error handling managed?
+>   - How is AI vs Player UX implemented?
+> - **Testing:**
+>   - Which Jest tests are still relevant?
+>   - Which ones are legacy / referencing old Vue code and should either be updated or removed?
+>   - Where are the biggest blind spots (features with no tests)?
+> - **Security / reliability:**
+>   - JWT handling, middlewares.
+>   - Rate limiting, sanitization.
+>   - Potential vulnerabilities or weak points.
+> - **UX / UI (conceptual):**
+>   - Does the current React UI appropriately communicate:
+>     - AI mode vs Human vs Human?
+>     - Who is the opponent?
+>     - Whose turn it is?
+>     - When AI is “thinking”?
+>   - Are loading/error states handled in a user‑friendly way?
+>
+> ### 4.3. Output: 50+ concrete prompts / tasks
+>
+> After your analysis, output **around 50 concrete prompts** (number them) that I can give to another coding assistant.
+>
+> Each prompt should be:
+> - **Self‑contained** (it should make sense on its own).
+> - **Actionable** (e.g. “Refactor X…”, “Add error handling to Y…”, “Design UI flow for Z…”).
+> - Targeted at improving:
+>   - Code quality / architecture.
+>   - AI vs Player functionality.
+>   - UX & UI clarity.
+>   - Test coverage / reliability.
+>   - DevOps / deployment readiness.
+
+---
+
+## Phase 7 – 60 targeted prompts for full polish (EN)
+
+Here are **60 targeted prompts** you can feed into a stronger AI (like GPT-4.1/5) to systematically fix, polish, and complete your backgammon app before you begin end-to-end testing.
+
+These prompts are organized by domain. You can copy-paste them one by one or in batches.
+
+---
+
+### 1. Backend Clean-up & Architecture
+
+1.  **Audit Prisma Schema:** Review `prisma/schema.prisma` for consistency. Ensure all relations (User-Game, Tournament-Match) are correctly defined with appropriate indexes and constraints. Suggest and apply a migration if needed.
+2.  **Centralize Config:** Verify `src/config/index.ts` captures ALL environment variables used in the app. If any `process.env` calls exist outside this file, refactor them to use the config module.
+3.  **Refactor GameService Methods:** Ensure `GameService.createGame` and `GameService.makeMove` have consistent error handling. If they throw raw strings, refactor to use a custom `AppError` class with status codes.
+4.  **Controller Validation:** In `src/controllers/gameController.ts`, replace manual `req.body` checks with a validation library like `zod` or `joi` to ensure input safety before passing data to services.
+5.  **Remove Dead Code:** Scan the entire `src/` directory for unused imports, unused variables (that aren't prefixed with `_`), and unreachable code blocks. Delete them to reduce noise.
+6.  **Standardize Logging:** Replace any `console.log` or `console.error` calls in `src/services/*.ts` with the centralized `Logger` from `src/utils/logger.ts`.
+7.  **Fix "any" Types:** Run a pass over `src/services/gameService.ts` and `gameController.ts` to replace usage of `any` with specific interfaces from `src/types/*.ts` where possible.
+8.  **Service Layer Isolation:** Ensure `gameController` never accesses `prisma` directly. It should exclusively call methods on `GameService`. Refactor any direct DB calls in controllers.
+9.  **WebSocket Type Safety:** In `src/websocket/server.ts` and `src/services/socketService.ts`, strictly type the payloads for `GAME_MOVE`, `GAME_JOIN`, and `GAME_ROLL` to ensure the frontend receives a consistent shape.
+10. **Rate Limiter Polish:** Review `src/middleware/rateLimiter.ts`. Ensure the defensive `rateLimitConfig` wrapper is robust and that rate limits are applied correctly to `/api/auth/*` vs `/api/games/*`.
+
+---
+
+### 2. Game Logic & AI Engine
+
+11. **AI Move Timeout:** In `GameService.makeMove`, implement a proper timeout or race condition for the AI move loop so it cannot hang the server indefinitely if GNUBG is slow.
+12. **AI "Thinking" State:** Update `GameService` to emit a `GAME_THINKING` event via WebSocket immediately after a human moves in an AI game, so the frontend knows to show a spinner.
+13. **Roll Dice Event:** Verify `GameService.rollDice` emits the internal `roll` event. Ensure this event payload explicitly includes the `dice` array and the `currentPlayer` to prevent desyncs.
+14. **Cube Logic Review:** Audit `src/services/rules/cubeLogic.ts` (or equivalent) to ensure the doubling cube rules (crawford, jacoby, etc.) are correctly checked before `makeMove` accepts a move.
+15. **Match End Handling:** Ensure `GameService.makeMove` correctly detects match termination (e.g., reaching target points). Upon match end, emit a `GAME_OVER` event with the winner/loser details.
+16. **Resignation Flow:** Implement the `GameService.resignGame` method (currently stubbed). Ensure it updates the game status, sets the winner, and emits `GAME_RESIGN` via WebSockets.
+17. **GNUBG Provider Retry:** In `src/providers/gnubgProvider.ts`, implement a retry mechanism with exponential backoff for calls to the external AI service (in case of 503/timeout).
+18. **Quota Management Hook:** Ensure `AIService.getBestMove` calls the quota manager *before* calling GNUBG. If quota is exceeded, throw a specific `QuotaExceededError` that controllers can catch.
+19. **Game Snapshot Integrity:** Review `serializeSnapshot` and `deserializeSnapshot` in `GameService`. Add a unit test to confirm that a board state round-trips correctly without data loss (e.g., bar counts).
+20. **Timer Logic:** Verify `TurnTimerService` integrates with `GameService`. Ensure that if a player's time runs out, the game status automatically updates to `TIMEOUT` (or sets a winner).
+
+---
+
+### 3. Frontend Architecture (React)
+
+21. **Env Var Consistency:** Ensure `guru-react/src/api/client.ts` uses `import.meta.env.VITE_API_BASE_URL`. Add a fallback to `window.location.origin` if the env var is missing (for production builds served by the same host).
+22. **API Client Types:** Refactor `guru-react/src/api/client.ts` to use generic return types for all methods (`get`, `post`, etc.) so components don't have to cast `response as any`.
+23. **Socket Hook Reconnection:** In `guru-react/src/hooks/useGameSocket.ts`, implement auto-reconnection logic with exponential backoff if the WebSocket connection drops unexpectedly.
+24. **Global Error State:** Create a global Error Boundary or a dedicated `useError` hook in the React app to display toast notifications for API failures (4xx/5xx) instead of just console logs.
+25. **Auth Context:** Implement a React Context (AuthContext) to manage `user` state and `token`. Ensure `useBackgammon` consumes this context instead of reading `localStorage` directly.
+26. **Component Cleanup:** Delete any legacy Vue-related files or folders (e.g., `src/components/Vue*`) if they still exist in the source tree to avoid confusion.
+27. **Strict Mode Compliance:** Verify `guru-react/src/App.tsx` and main components render correctly inside `<React.StrictMode>` without double-invoking effects that cause side effects (like creating duplicate games).
+28. **CSS/Tailwind Review:** Check if the project uses raw CSS or Tailwind. If mixed, refactor `components/GameBoard/*.css` to use Tailwind utility classes for consistency (if Tailwind is the chosen direction).
+29. **Asset Optimization:** Ensure all images/icons in `src/assets` are optimized (WebP/SVG). Create a helper component `Icon` to render SVGs efficiently.
+30. **Linter Config:** Update `guru-react/eslint.config.js` (or `.eslintrc`) to include rules for React Hooks (`exhaustive-deps`) and ensure no critical rules are disabled.
+
+---
+
+### 4. UI/UX Polish
+
+31. **Loading Skeleton:** Create a "Game Loading" skeleton state in `GameBoard.tsx` to display while `useBackgammon` is fetching the initial game state.
+32. **AI Indicator:** Add a visual indicator (e.g., a robot icon or "Bot Thinking..." badge) near the opponent's avatar when playing against AI.
+33. **Dice Animation:** Implement a CSS or Framer Motion animation for dice rolls in `Dice.tsx`. Trigger this animation when `move.eventType === 'roll'` is received via WebSocket.
+34. **Legal Move Highlighting:** In `useBackgammon`, ensure `validMoves` are correctly calculated and passed to `GameBoard`. Visually highlight points that are valid destinations for the selected checker.
+35. **Move History Sidebar:** Polish the `MoveHistory` component. Ensure it auto-scrolls to the bottom when a new move is added. Format moves in standard backgammon notation (e.g., "8/5 6/5").
+36. **Chat UI:** Enhance `GameChat` to distinguish system messages (e.g., "Player joined", "AI moved") from user messages. Use different colors/styles.
+37. **Player Feedback:** Add toast notifications for game events: "You Win!", "Game Over", "Resignation accepted". Use a library like `sonner` or `react-hot-toast`.
+38. **Responsiveness:** Test `GameBoard` layout on mobile breakpoints. Ensure checkers and dice scale down appropriately without breaking the layout.
+39. **Connection Status:** Improve the "Online/Offline" badge in `guru-react/src/App.tsx`. Show "Reconnecting..." in yellow if the socket drops, and "Connected" in green when active.
+40. **Landing Page:** Create a simple "Lobby" or "Home" component that allows the user to choose "Play vs AI" or "Play vs Human" before rendering the `GameBoard`.
+
+---
+
+### 5. Testing (Backend & Frontend)
+
+41. **Remove Legacy Tests:** Delete all Jest test files in `tests/` that import from `frontend/src` or reference `.vue` files. These are obsolete.
+42. **Backend Unit Test - Create Game:** Write a Jest test for `GameService.createGame` that mocks Prisma and verifies that a game is returned with the correct initial board and status.
+43. **Backend Unit Test - Make Move:** Write a test for `GameService.makeMove` verifying that it throws an error if a player tries to move out of turn or uses dice they don't have.
+44. **Backend Integration Test - AI Flow:** Write an integration test (mocking GNUBG provider) that simulates a full turn: Player Roll -> Player Move -> AI Roll -> AI Move.
+45. **Frontend Unit Test - Hook:** Write a test for `useBackgammon` (using `renderHook`) to verify it correctly updates state when `rollDice` is called (mocking the API).
+46. **Frontend Component Test - Board:** Use React Testing Library to render `GameBoard` with a specific state and assert that the correct number of checkers are displayed on the correct points.
+47. **WS Logic Test:** Write a backend test for `socketService` ensuring that calling `onGameMove` broadcasts the message to the correct room/channel.
+48. **Rate Limit Test:** Write a supertest/Jest test hitting a protected endpoint 100 times rapidly to confirm the rate limiter returns 429.
+49. **End-to-End Scenario:** Describe a manual test plan in `tests/manual-test-plan.md` covering the "Happy Path" (Login -> Create AI Game -> Finish Game) so a human can verify quickly.
+50. **CI Pipeline:** Create a GitHub Actions workflow (`.github/workflows/test.yml`) that installs dependencies and runs `npm run lint` and `npm test` for both backend and frontend.
+
+---
+
+### 6. DevOps & Deployment Readiness
+
+51. **Dockerfile - Backend:** Create a `Dockerfile` for the backend that performs a multi-stage build (install deps -> build TS -> copy dist -> run).
+52. **Dockerfile - Frontend:** Create a `Dockerfile` for the frontend that builds the React app and serves it via Nginx (or prepares it for static hosting).
+53. **Render Config:** Create a `render.yaml` (blueprint) defining the web service (backend) and static site (frontend), linking them correctly.
+54. **Environment Config Documentation:** Create `DEPLOYMENT.md` listing every required ENV var (`DATABASE_URL`, `JWT_SECRET`, etc.) with descriptions of where to get them.
+55. **Database Migration Script:** Add a `release` command in `package.json` (or Render start command) that runs `npx prisma migrate deploy` before starting the server.
+56. **Security Headers:** Verify `helmet` configuration in `src/server.ts`. Ensure Content Security Policy (CSP) allows connections to the WebSocket URL and API URL.
+57. **CORS Configuration:** Update `src/config/index.ts` to accept the production frontend URL (e.g., `https://gammon-guru.onrender.com`) in the CORS whitelist.
+58. **Logging for Prod:** Configure `src/utils/logger.ts` to use structured logging (JSON) in production for better integration with log aggregators (like Datadog or Render logs).
+59. **Health Check Endpoint:** Enhance `/health` endpoint to perform a lightweight DB query (`SELECT 1`) so load balancers know if the service is truly ready.
+60. **Final Code Audit:** Run a final pass over `package.json` in both root and subfolders. Ensure `engines` (Node version) matches your production runtime and all scripts (`start`, `build`) are correct.

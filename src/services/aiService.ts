@@ -2,7 +2,7 @@
 import type { AnalysisQuota } from '@prisma/client';
 import type { Move } from '../types/game';
 import type { EvaluationResult, SuggestedMove } from '../types/ai';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { SubscriptionService, type UserPlan } from './subscriptionService';
 import { GNUBGProvider } from '../providers/gnubgProvider';
 

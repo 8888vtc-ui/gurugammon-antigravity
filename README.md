@@ -312,9 +312,7 @@ Ces flux sont couverts par la suite Jest `tests/gnubgQuota.test.ts` et fournisse
 ## Licences
 
 - Le backend et le frontend GuruGammon sont publiés sous licence MIT (voir `LICENSE`).
-- GuruGammon utilise le serveur open‑source **bgammon** comme moteur de jeu en ligne.
-  - Projet : [tslocum/bgammon](https://github.com/tslocum/bgammon)
-  - Licence : GNU AGPL-3.0 (voir `LICENSE.bgammon` et le dépôt amont)
+- Le moteur d'analyse IA utilise **GNUBG** (GNU Backgammon), qui est sous licence GPL. L'intégration se fait via un service séparé respectant les termes de la licence.
 
 ---
 

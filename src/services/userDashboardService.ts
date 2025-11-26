@@ -1,4 +1,4 @@
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { AIService } from './aiService';
 import { SubscriptionService } from './subscriptionService';
 

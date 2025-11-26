@@ -19,11 +19,12 @@ const hashToken = (token: string): string =>
 
 const now = () => new Date();
 
-const SESSION_TTL_SECONDS = config.session.ttlSeconds;
-const SESSION_TOKEN_SECRET = config.session.tokenSecret;
-const SESSION_REDIS_ENABLED = config.session.redisReadThroughEnabled;
-const SESSION_REDIS_NAMESPACE = config.session.redisNamespace;
-const DEFAULT_REPLAY_LIMIT = config.session.replayRetention;
+// Defensive defaults in case config.session is unexpectedly undefined at runtime
+const SESSION_TTL_SECONDS = config.session?.ttlSeconds ?? 30 * 60; // 30 minutes
+const SESSION_TOKEN_SECRET = config.session?.tokenSecret ?? 'dev-session-secret';
+const SESSION_REDIS_ENABLED = config.session?.redisReadThroughEnabled ?? false;
+const SESSION_REDIS_NAMESPACE = config.session?.redisNamespace ?? 'gsr';
+const DEFAULT_REPLAY_LIMIT = config.session?.replayRetention ?? 50;
 
 const CACHE_OPERATIONS = {
   sessionByGameUser: 'session_by_game_user',

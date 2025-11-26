@@ -1,122 +1,72 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import type { GameState } from '../types';
+import { useEffect, useRef, useState } from 'react';
+import { API_BASE_URL } from '../api/client';
 
-export type GameSocketMessage =
-  | { type: 'GAME_UPDATE'; payload: GameState }
-  | { type: 'GAME_MOVE'; payload: GameState }
-  | { type: string; payload?: unknown };
-
-export type UseGameSocketOptions = {
-  gameId: string | number | null;
-  /** Optionnel : URL de base du backend pour le WebSocket (par défaut dérivée de window.location) */
-  baseWsUrl?: string;
+export type SocketMessage = {
+  type: string;
+  payload: any;
+  timestamp?: string;
+  senderId?: string | null;
 };
 
-export type UseGameSocketResult = {
-  gameState: GameState | null;
-  isConnected: boolean;
-  isConnecting: boolean;
-  error: string | null;
-  sendMove: (move: unknown) => void;
-};
-
-function buildWebSocketUrl(path: string, baseOverride?: string): string {
-  if (baseOverride) {
-    return `${baseOverride.replace(/\/$/, '')}${path}`;
-  }
-
-  if (typeof window === 'undefined') {
-    return `ws://localhost:3000${path}`;
-  }
-
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host;
-  return `${protocol}//${host}${path}`;
-}
-
-export function useGameSocket(options: UseGameSocketOptions): UseGameSocketResult {
-  const { gameId, baseWsUrl } = options;
-
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+export const useGameSocket = (
+  gameId: string | number | null,
+  onEvent: (message: SocketMessage) => void
+) => {
   const socketRef = useRef<WebSocket | null>(null);
-
-  const sendMove = useCallback((move: unknown) => {
-    const socket = socketRef.current;
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-      return;
-    }
-
-    const message = {
-      type: 'GAME_MOVE',
-      payload: move,
-    };
-
-    try {
-      socket.send(JSON.stringify(message));
-    } catch (err) {
-      console.error('Failed to send move over WebSocket', err);
-    }
-  }, []);
+  const [isConnected, setIsConnected] = useState(false);
+  const onEventRef = useRef(onEvent);
 
   useEffect(() => {
-    if (!gameId) {
+    onEventRef.current = onEvent;
+  }, [onEvent]);
+
+  useEffect(() => {
+    if (!gameId) return;
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      console.warn('No auth token found, skipping WebSocket connection');
       return;
     }
 
-    const path = `/ws/game?gameId=${encodeURIComponent(String(gameId))}`;
-    const url = buildWebSocketUrl(path, baseWsUrl);
+    const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+    const wsHost = API_BASE_URL.replace(/^https?:\/\//, '');
+    const url = `${wsProtocol}://${wsHost}/ws/game?gameId=${gameId}`;
 
-    const socket = new WebSocket(url);
-    socketRef.current = socket;
+    // Pass token in a single subprotocol so the backend can read `Bearer <token>` from sec-websocket-protocol
+    const ws = new WebSocket(url, [`Bearer ${token}`]);
 
-    socket.onopen = () => {
+    ws.onopen = () => {
+      console.log('WebSocket connected');
       setIsConnected(true);
-      setError(null);
     };
 
-    socket.onclose = () => {
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data) as SocketMessage;
+        onEventRef.current(message);
+      } catch (e) {
+        console.error('Failed to parse WS message', e);
+      }
+    };
+
+    ws.onclose = (event) => {
+      console.log('WebSocket disconnected', event.code, event.reason);
       setIsConnected(false);
     };
 
-    socket.onerror = (event) => {
-      console.error('Game WebSocket error', event);
-      setError('Erreur de connexion WebSocket.');
+    ws.onerror = (error) => {
+      console.error('WebSocket error', error);
     };
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as GameSocketMessage;
-
-        if (data.type === 'GAME_UPDATE' || data.type === 'GAME_MOVE') {
-          if (data.payload) {
-            setGameState(data.payload as GameState);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to parse WebSocket message', err);
-      }
-    };
+    socketRef.current = ws;
 
     return () => {
-      socketRef.current = null;
-      try {
-        socket.close();
-      } catch {
-        // ignore
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
       }
     };
-  }, [gameId, baseWsUrl]);
+  }, [gameId]); // Re-connect only if gameId changes
 
-  const isConnecting = !isConnected && !error;
-
-  return {
-    gameState,
-    isConnected,
-    isConnecting,
-    error,
-    sendMove,
-  };
-}
+  return { isConnected };
+};

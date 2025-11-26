@@ -1,6 +1,6 @@
 import { type FC } from 'react';
 import './Point.css';
-import { Checker } from './Checker.tsx';
+import { Checker } from '../Checker';
 
 export interface PointProps {
     pointIndex: number;

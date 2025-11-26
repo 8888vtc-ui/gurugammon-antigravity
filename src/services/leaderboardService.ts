@@ -1,4 +1,4 @@
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import type { LeaderboardScopePayload } from './socketService';
 
 export type LeaderboardSort = 'elo' | 'winrate' | 'games';

@@ -7,6 +7,15 @@ import { Logger } from '../utils/logger';
 
 const logger = new Logger('RateLimiter');
 
+// Defensive wrapper around config.rateLimit so we don't crash if it's undefined at runtime
+const rateLimitConfig = config.rateLimit ?? {
+  enabled: false,
+  bypassUserIds: [],
+  defaultMessage: 'Too many requests. Please try again later.',
+  auth: undefined as unknown,
+  gnubg: undefined as unknown
+} as const;
+
 type RateLimiterScope = 'auth' | 'gnubg';
 
 type RequestWithUser = Request & {
@@ -39,7 +48,7 @@ const resolveKey = (req: RequestWithUser) => {
 };
 
 const shouldBypass = (req: RequestWithUser) => {
-  if (!config.rateLimit.enabled) {
+  if (!rateLimitConfig.enabled) {
     return true;
   }
 
@@ -51,7 +60,7 @@ const shouldBypass = (req: RequestWithUser) => {
     return true;
   }
 
-  if (req.user?.id && config.rateLimit.bypassUserIds.includes(req.user.id)) {
+  if (req.user?.id && rateLimitConfig.bypassUserIds.includes(req.user.id)) {
     return true;
   }
 
@@ -59,9 +68,9 @@ const shouldBypass = (req: RequestWithUser) => {
 };
 
 export const createRateLimiter = (scope: RateLimiterScope): RateLimitRequestHandler => {
-  const settings = config.rateLimit[scope];
+  const settings = (rateLimitConfig as Record<string, any>)[scope];
 
-  if (!settings || !config.rateLimit.enabled) {
+  if (!settings || !rateLimitConfig.enabled) {
     const noop = (( _req: Request, _res: Response, next: NextFunction) => next()) as RateLimitRequestHandler;
     noop.resetKey = () => {};
     noop.getKey = async () => undefined;

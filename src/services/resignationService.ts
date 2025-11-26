@@ -2,7 +2,7 @@ import type { ResignGameRequest, ResignGameResult } from '../types/game';
 import type { MatchRecord, MatchRulesOptions } from './rules/matchEngine';
 import { createDefaultRules } from './rules/matchEngine';
 import { resolveResignation, type ResignationType } from './rules/resignationService';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import type { games } from '@prisma/client';
 
 interface ResignationOutcome extends ResignGameResult {

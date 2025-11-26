@@ -1,10 +1,7 @@
 import { type FC } from 'react';
 import { LayoutGroup, motion } from 'framer-motion';
-import { Checker } from './Checker.tsx';
+import { Checker } from './Checker';
 import './GameBoard.css';
-import './Point.css';
-import './Dice.css';
-import './DoublingCube.css';
 import './Interactive.css';
 
 export interface GameBoardProps {
@@ -32,6 +29,10 @@ export interface GameBoardProps {
 
 export const GameBoard: FC<GameBoardProps> = ({
     board,
+    whiteBar,
+    blackBar,
+    whiteOff,
+    blackOff,
     dice,
     isRollingDice,
     cubeValue,
@@ -42,26 +43,36 @@ export const GameBoard: FC<GameBoardProps> = ({
     validMoves,
     onPointClick
 }) => {
+    // Dynamic Lighting Effect
+    const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        e.currentTarget.style.setProperty('--light-x', `${x}px`);
+        e.currentTarget.style.setProperty('--light-y', `${y}px`);
+    };
+
     // Split board into quadrants for proper backgammon layout
     // From white's perspective (bottom):
-    // Bottom Right: Points 1-6
-    // Bottom Left: Points 7-12
-    // Top Left: Points 13-18 
-    // Top Right: Points 19-24
+    // Bottom Right: Points 1-6 (Right to Left visually: 6, 5, 4, 3, 2, 1) -> 1 is Edge
+    // Bottom Left: Points 7-12 (Right to Left visually: 12, 11, 10, 9, 8, 7) -> 12 is Edge
+    // Top Left: Points 13-18 (Left to Right visually: 13, 14, 15, 16, 17, 18) -> 13 is Edge
+    // Top Right: Points 19-24 (Left to Right visually: 19, 20, 21, 22, 23, 24) -> 24 is Edge
+
     const bottomRight = board.slice(0, 6);        // Points 1-6
     const bottomLeft = board.slice(6, 12);        // Points 7-12
-    const topLeft = board.slice(12, 18).reverse(); // Points 13-18 (reversed for display)
-    const topRight = board.slice(18, 24).reverse(); // Points 19-24 (reversed for display)
+    const topLeft = board.slice(12, 18);          // Points 13-18 (No reverse needed for Left-to-Right render)
+    const topRight = board.slice(18, 24);         // Points 19-24 (No reverse needed for Left-to-Right render)
 
     // Render a point (triangle) and its stack of animated checkers
     const renderPoint = (checkerCount: number, pointNumber: number, direction: 'up' | 'down', colorClass: 'light' | 'dark') => {
         // Les points dans le tableau board sont 0-indexés (0-23), mais pointNumber est 1-24
         // L'index réel dans le tableau board[]
-        const boardIndex = pointNumber - 1; 
-        
+        const boardIndex = pointNumber - 1;
+
         const isSelected = selectedPoint === boardIndex;
         const isValidMove = Array.isArray(validMoves) && validMoves.includes(boardIndex);
-        
+
         const isLastFrom = lastMove && lastMove.from === boardIndex;
         const isLastTo = lastMove && lastMove.to === boardIndex;
         const isHintFrom = hintMove && hintMove.from === boardIndex;
@@ -69,7 +80,7 @@ export const GameBoard: FC<GameBoardProps> = ({
 
         const player = checkerCount > 0 ? 'white' : 'black';
         const absoluteCount = Math.abs(checkerCount);
-        
+
         const pointClasses = [
             'point',
             `point-${direction}`,
@@ -83,10 +94,10 @@ export const GameBoard: FC<GameBoardProps> = ({
         ]
             .filter(Boolean)
             .join(' ');
-        
+
         return (
-            <div 
-                key={`point-${pointNumber}`} 
+            <div
+                key={`point-${pointNumber}`}
                 className={pointClasses}
                 onClick={() => onPointClick?.(boardIndex)}
                 style={{ cursor: 'pointer' }}
@@ -170,64 +181,111 @@ export const GameBoard: FC<GameBoardProps> = ({
     return (
         <LayoutGroup>
             <div className="game-board-container">
-                <div className="game-board">
-                {/* Top Half */}
-                <div className="board-half board-top">
-                    {/* Top Left Quadrant (Points 13-18) */}
-                    <div className="quadrant quadrant-top-left">
-                        {topLeft.map((checkers, index) =>
-                            renderPoint(checkers, 18 - index, 'down', (18 - index) % 2 === 0 ? 'dark' : 'light')
-                        )}
+                <div
+                    className="game-board"
+                    onMouseMove={handleMouseMove}
+                    style={{ '--light-x': '50%', '--light-y': '50%' } as React.CSSProperties}
+                >
+                    {/* Top Half */}
+                    <div className="board-half board-top">
+                        {/* Top Left Quadrant (Points 13-18) */}
+                        <div className="quadrant quadrant-top-left">
+                            {topLeft.map((checkers, index) =>
+                                renderPoint(checkers, 13 + index, 'down', (13 + index) % 2 === 0 ? 'dark' : 'light')
+                            )}
+                        </div>
+
+                        <div className="bar">
+                            {whiteBar > 0 && (
+                                <div className="bar-checkers bar-checkers-top">
+                                    {Array.from({ length: whiteBar }).map((_, i) => (
+                                        <Checker
+                                            key={`bar-white-${i}`}
+                                            player="white"
+                                            position={{ point: -1, stack: i }}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Top Right Quadrant (Points 19-24) */}
+                        <div className="quadrant quadrant-top-right">
+                            {topRight.map((checkers, index) =>
+                                renderPoint(checkers, 19 + index, 'down', (19 + index) % 2 === 0 ? 'dark' : 'light')
+                            )}
+                        </div>
                     </div>
 
-                    <div className="bar" />
-
-                    {/* Top Right Quadrant (Points 19-24) */}
-                    <div className="quadrant quadrant-top-right">
-                        {topRight.map((checkers, index) =>
-                            renderPoint(checkers, 24 - index, 'down', (24 - index) % 2 === 0 ? 'dark' : 'light')
-                        )}
+                    {/* Middle - Dice and Cube */}
+                    <div className="board-middle">
+                        {renderDice()}
+                        <div className="doubling-cube">
+                            <div className="cube-face">
+                                <div className="cube-value">{cubeValue}</div>
+                            </div>
+                        </div>
                     </div>
-                </div>
 
-                {/* Middle - Dice and Cube */}
-                <div className="board-middle">
-                    {renderDice()}
-                    <div className="doubling-cube">
-                        <div className="cube-face">
-                            <div className="cube-value">{cubeValue}</div>
+                    {/* Bottom Half */}
+                    <div className="board-half board-bottom">
+                        {/* Bottom Left Quadrant (Points 12-7) */}
+                        <div className="quadrant quadrant-bottom-left">
+                            {bottomLeft.slice().reverse().map((checkers, index) =>
+                                renderPoint(checkers, 12 - index, 'up', (12 - index) % 2 === 0 ? 'dark' : 'light')
+                            )}
+                        </div>
+
+                        <div className="bar">
+                            {blackBar > 0 && (
+                                <div className="bar-checkers bar-checkers-bottom">
+                                    {Array.from({ length: blackBar }).map((_, i) => (
+                                        <Checker
+                                            key={`bar-black-${i}`}
+                                            player="black"
+                                            position={{ point: 24, stack: i }}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Bottom Right Quadrant (Points 6-1) */}
+                        <div className="quadrant quadrant-bottom-right">
+                            {bottomRight.slice().reverse().map((checkers, index) =>
+                                renderPoint(checkers, 6 - index, 'up', (6 - index) % 2 === 0 ? 'dark' : 'light')
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Off Sections */}
+                    <div className="off-section off-white" onClick={() => onPointClick?.(24)}>
+                        <div className="off-label">White Off</div>
+                        <div className="off-checkers">
+                            {Array.from({ length: whiteOff }).map((_, i) => (
+                                <div key={`off-white-${i}`} className="checker checker-white checker-small" />
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="off-section off-black" onClick={() => onPointClick?.(-1)}>
+                        <div className="off-label">Black Off</div>
+                        <div className="off-checkers">
+                            {Array.from({ length: blackOff }).map((_, i) => (
+                                <div key={`off-black-${i}`} className="checker checker-black checker-small" />
+                            ))}
                         </div>
                     </div>
                 </div>
 
-                {/* Bottom Half */}
-                <div className="board-half board-bottom">
-                    {/* Bottom Left Quadrant (Points 12-7) */}
-                    <div className="quadrant quadrant-bottom-left">
-                        {bottomLeft.slice().reverse().map((checkers, index) =>
-                            renderPoint(checkers, 12 - index, 'up', (12 - index) % 2 === 0 ? 'dark' : 'light')
-                        )}
-                    </div>
-
-                    <div className="bar" />
-
-                    {/* Bottom Right Quadrant (Points 6-1) */}
-                    <div className="quadrant quadrant-bottom-right">
-                        {bottomRight.slice().reverse().map((checkers, index) =>
-                            renderPoint(checkers, 6 - index, 'up', (6 - index) % 2 === 0 ? 'dark' : 'light')
-                        )}
-                    </div>
+                {/* Current Player Indicator */}
+                <div className="current-player-indicator">
+                    <span className={`indicator-dot ${currentPlayer === 'white' ? 'white' : 'black'}`} />
+                    <span className="indicator-text">
+                        {currentPlayer === 'white' ? 'White' : 'Black'} to play
+                    </span>
                 </div>
             </div>
-
-            {/* Current Player Indicator */}
-            <div className="current-player-indicator">
-                <span className={`indicator-dot ${currentPlayer === 'white' ? 'white' : 'black'}`} />
-                <span className="indicator-text">
-                    {currentPlayer === 'white' ? 'White' : 'Black'} to play
-                </span>
-            </div>
-        </div>
-    </LayoutGroup>
+        </LayoutGroup>
     );
 };

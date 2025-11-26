@@ -5,8 +5,11 @@ import { promisify } from 'util';
 import { BoardState, Move } from '../types/game';
 import * as fs from 'fs';
 import * as path from 'path';
+import { Logger } from '../utils/logger';
 
 const execAsync = promisify(exec);
+
+const logger = new Logger('GNUBGRunner');
 
 export class GNUBGRunner {
   
@@ -50,7 +53,7 @@ export class GNUBGRunner {
         fs.unlinkSync(filepath);
       }
     } catch (error) {
-      console.warn('Failed to cleanup temp file:', error);
+      logger.warn('Failed to cleanup temp file', error);
     }
   }
 
@@ -89,7 +92,7 @@ quit
           });
           
           if (stderr) {
-            console.warn('GNUBG warning:', stderr);
+            logger.warn('GNUBG warning', stderr);
           }
           
           // Parser le résultat
@@ -120,7 +123,7 @@ quit
       }
       
     } catch (error) {
-      console.error('GNUBG error:', error);
+      logger.error('GNUBG error', error);
       throw new Error(`Failed to get hint from GNUBG: ${error}`);
     }
   }
@@ -239,7 +242,7 @@ quit
         }
       
     } catch (error) {
-      console.error('GNUBG evaluation error:', error);
+      logger.error('GNUBG evaluation error', error);
       throw new Error(`Failed to evaluate position: ${error}`);
     }
   }

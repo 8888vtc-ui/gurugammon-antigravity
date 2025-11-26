@@ -1,7 +1,7 @@
 // src/controllers/userController.ts
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/authMiddleware';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 
 // Obtenir le profil de l'utilisateur connecté
 export const getProfile = async (req: AuthRequest, res: Response) => {

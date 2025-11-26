@@ -25,7 +25,7 @@ export interface SocketMessage<TPayload = unknown> {
   senderId: string | null;
 }
 
-export type GameEventType = 'join' | 'move' | 'resign' | 'draw' | 'cube';
+export type GameEventType = 'join' | 'move' | 'roll' | 'resign' | 'draw' | 'cube';
 
 export interface MessagePayload {
   type: GameEventType;
@@ -178,15 +178,6 @@ function emit<TPayload>(
 ): void {
   const message = buildMessage(type, payload, senderId);
   socket.send(JSON.stringify(message));
-}
-
-function buildCubeEventPayload(gameId: string, userId: string, action: Record<string, unknown>, summary: GameSummary | null) {
-  return {
-    gameId,
-    userId,
-    action,
-    ...(summary ? { summary } : {})
-  } satisfies GameCubePayload;
 }
 
 export const SocketService = {

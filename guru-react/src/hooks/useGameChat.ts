@@ -30,7 +30,7 @@ function buildWebSocketUrl(path: string, baseOverride?: string): string {
   }
 
   if (typeof window === 'undefined') {
-    return `ws://localhost:3000${path}`;
+    return '';
   }
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';

@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import type { GameMode, GameStatus } from '@prisma/client';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { notificationService } from './notificationService';
 
 export type MatchmakingStatus = {

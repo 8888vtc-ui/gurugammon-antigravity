@@ -506,7 +506,6 @@ app.use((error: unknown, req: Request, res: Response, _next: NextFunction) => {
 
 // Démarrage du serveur
 let server: Server | null = null;
-let sessionCleanupHandle: NodeJS.Timeout | null = null;
 
 if (config.nodeEnv !== 'test') {
   server = app.listen(config.port, () => {
@@ -522,7 +521,7 @@ if (config.nodeEnv !== 'test') {
     initWebSocketServer(server as Server);
     logger.info('🕸️  WebSocket Server initialized for real-time multiplayer');
 
-    sessionCleanupHandle = GameSessionRegistryScheduler.start(config.session.cleanupIntervalMs);
+    GameSessionRegistryScheduler.start(config.session.cleanupIntervalMs);
     logger.info('🧹 GameSessionRegistry cleanup scheduler started', {
       intervalMs: config.session.cleanupIntervalMs
     });
@@ -555,7 +554,6 @@ process.on('uncaughtException', (error) => {
 process.on('SIGTERM', async () => {
   logger.info('🛡️ SIGTERM received, secure shutdown initiated');
   GameSessionRegistryScheduler.stop();
-  sessionCleanupHandle = null;
 
   if (!server) {
     await prisma.$disconnect();
@@ -575,7 +573,7 @@ process.on('SIGTERM', async () => {
 process.on('SIGINT', async () => {
   logger.info('🛡️ SIGINT received, secure shutdown initiated');
   GameSessionRegistryScheduler.stop();
-  sessionCleanupHandle = null;
+
   if (!server) {
     await prisma.$disconnect();
     logger.info('🗄️  Database connection closed');

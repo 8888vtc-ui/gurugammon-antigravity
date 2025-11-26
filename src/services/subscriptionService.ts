@@ -1,6 +1,6 @@
 // src/services/subscriptionService.ts
 import { SubscriptionPlan, SubscriptionStatus } from '@prisma/client';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 
 export type UserPlan = 'free' | 'premium';
 

@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { PlayerColor, TimeControlConfig, TimeControlPreset } from '../types/game';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { logger } from '../utils/logger';
 
 const PRESET_DEFINITIONS: Record<Exclude<TimeControlPreset, 'CUSTOM'>, TimeControlConfig> = {

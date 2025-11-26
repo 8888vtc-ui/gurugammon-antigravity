@@ -2,9 +2,8 @@
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import compression from 'compression';
-import hpp from 'hpp';
 import helmet from 'helmet';
-import { body, param, query, validationResult } from 'express-validator';
+import { body, param, validationResult } from 'express-validator';
 import { Logger } from './utils/logger';
 import { Request, Response, NextFunction } from 'express';
 
@@ -142,7 +141,16 @@ export const sanitizeInput = (req: Request, res: Response, next: NextFunction) =
     // Remove null bytes and control characters
     const sanitizeString = (str: string) => {
         if (typeof str !== 'string') return str;
-        return str.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+        // Remove control characters using Unicode escape ranges to satisfy no-control-regex
+        let result = '';
+        for (let i = 0; i < str.length; i += 1) {
+            const code = str.charCodeAt(i);
+            if ((code >= 0 && code <= 31) || (code >= 127 && code <= 159)) {
+                continue;
+            }
+            result += str[i];
+        }
+        return result.trim();
     };
 
     // Sanitize all string inputs
@@ -233,7 +241,7 @@ export const requestTimeout = (timeoutMs = 30000) => {
 };
 
 // Error sanitization middleware
-export const sanitizeError = (error: any, req: Request, res: Response, next: NextFunction) => {
+export const sanitizeError = (error: any, req: Request, res: Response, _next: NextFunction) => {
     // Don't leak internal errors
     const sanitizedError = {
         error: 'Internal server error',

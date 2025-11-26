@@ -1,6 +1,6 @@
 // src/routes/players.ts
 import express from 'express';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 
 const router = express.Router();
 

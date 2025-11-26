@@ -5,7 +5,7 @@ import type { Move } from '../types/game';
 import type { AnalyzeInput } from './aiService';
 import { GNUBGProvider } from '../providers/gnubgProvider';
 import { Logger } from '../utils/logger';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { quotaConsumptionTotal, quotaExhaustedTotal } from '../metrics/quotaMetrics';
 import { SubscriptionService, type UserPlan } from './subscriptionService';
 import { QuotaExceededError } from './aiService';

@@ -29,3 +29,6 @@ frontend/.output/
 .env
 .env
 .env
+
+# Allow temporary folder for test logs
+!tmp/

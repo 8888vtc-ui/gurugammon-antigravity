@@ -1,7 +1,7 @@
 // src/middleware/authMiddleware.ts
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { config } from '../config';
 
 interface JwtUserPayload extends jwt.JwtPayload {

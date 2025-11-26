@@ -1,4 +1,4 @@
-import { prisma } from '../server';
+import { prisma } from '../lib/prisma';
 import { config } from '../config';
 
 interface SeasonStatsSnapshot {
