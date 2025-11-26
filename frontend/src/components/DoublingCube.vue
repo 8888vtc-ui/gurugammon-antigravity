@@ -1,5 +1,5 @@
 <template>
-  <div class="bgammon-cube-status">
+  <div class="cube-status">
     Cube: {{ cubeValue }}
     <span>Propriétaire: {{ ownerLabel }}</span>
   </div>
@@ -27,7 +27,7 @@ const ownerLabel = computed(() => {
 </script>
 
 <style scoped>
-.bgammon-cube-status {
+.cube-status {
   font-family: Arial, sans-serif;
   margin: 8px;
 }

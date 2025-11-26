@@ -10,7 +10,7 @@ const mockSeasonLeaderboardFindFirst = jest.fn();
 const mockGetUserPlan = jest.fn();
 const mockGetQuotaStatus = jest.fn();
 
-jest.mock('../../src/server', () => ({
+jest.mock('../../src/lib/prisma', () => ({
   prisma: {
     users: {
       findUnique: (...args: unknown[]) => mockUsersFindUnique(...args)

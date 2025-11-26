@@ -10,7 +10,7 @@ const mockSeasonStatsCount = jest.fn();
 const mockSeasonStatsFindMany = jest.fn();
 const mockSeasonLeaderboardFindMany = jest.fn();
 
-jest.mock('../../src/server', () => ({
+jest.mock('../../src/lib/prisma', () => ({
   prisma: {
     users: {
       count: (...args: unknown[]) => mockUsersCount(...args),

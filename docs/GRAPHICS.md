@@ -50,9 +50,9 @@ Elles sont ensuite utilisées via `var(--gg-*)` pour le fond, les textes et les 
 
 - **En-tête**
   - Infos joueurs (blanc / noir, ELO).
-  - Statut de partie (`gameStatus`) et mise (`stake`).
+  - Statut de partie et mise.
   - Composant `Dice` pour l’affichage des dés.
-  - Composant `DoublingCube` (videau local) + affichage du cube bgammon (lecture seule).
+  - Composant `DoublingCube` (videau local) + affichage du cube (lecture seule).
 
 - **Plateau graphique premium**
   - Conteneur :
@@ -90,7 +90,7 @@ Elles sont ensuite utilisées via `var(--gg-*)` pour le fond, les textes et les 
     .checker-white { background-image: url('/assets/backgammon/checker-white.png'); }
     .checker-black { background-image: url('/assets/backgammon/checker-black.png'); }
     ```
-  - Les coordonnées `x` / `y` sont dérivées de `bgammonState.checkers` via une fonction de mapping qui utilise une table de points prédéfinis.
+  - Les coordonnées `x` / `y` sont dérivées de `checkers` via une fonction de mapping qui utilise une table de points prédéfinis.
 
 ## Triangles et offsets
 
@@ -133,46 +133,36 @@ Ce qui garantit :
 
 - **Barre et sorties**
 
-  Les informations de barre et de pions sortis viennent de `bgammonState.bar` et `bgammonState.off` (normalisées dans `bgammonClient`) et sont affichées :
+  Les informations de barre et de pions sortis viennent de `bar` et `off` (normalisées) et sont affichées :
 
   ```html
   <div v-for="b in barCheckers" class="bar-stack bar-white|bar-black"> ... </div>
   <div v-for="o in offCheckers" class="off-stack off-white|off-black"> ... </div>
   ```
 
-- **Panneau bgammon (debug/inspection)**
+- **Panneau (debug/inspection)**
 
-  La section `.bgammon-state` affiche :
+  La section `.state` affiche :
 
-  - Les dés bgammon (`bgammonState.dice`).
-  - La liste de mouvements bruts (`bgammonState.moves`).
+  - Les dés (`dice`).
+  - La liste de mouvements bruts (`moves`).
   - Les barres / sorties (`barCheckers`, `offCheckers`).
   - Les scores : `scoreUser`, `scoreOpponent`.
-  - Le cube bgammon : `cubeValue` et `cubeOwner` (user / opponent / centre).
+  - Le cube : `cubeValue` et `cubeOwner` (user / opponent / centre).
 
-## Raccordement à `bgammonState`
+## Raccordement
 
 Le pipeline de données est le suivant :
 
-1. **`bgammonClient.ts`**
-   - Reçoit les messages JSON du serveur bgammon.
-   - Normalise la structure en `BgammonState` :
-     - `board: number[]` (24 points + bar/off)
-     - `checkers: { point; color; count }[]` dérivés de `board`
-     - `bar`, `off` par couleur
-     - `dice`, `moves`
-     - `cubeValue`, `cubeOwner` (depuis `DoubleValue`/`DoublePlayer`)
-     - `scoreUser`, `scoreOpponent` (depuis `Player1/Player2.Points`).
-
-2. **`GameBoard.vue`**
-   - S’abonne via `bgammonClient.subscribe(bgammonHandler)`.
-   - Dans `bgammonHandler(state)` :
+1. **`GameBoard.vue`**
+   - S’abonne via `subscribe(handler)`.
+   - Dans `handler(state)` :
      - `dice.value = state.dice`.
      - Mapping `state.checkers` → `checkers` avec coordonnées (via `mapBoardToCheckers`).
      - `barCheckers.value = state.bar`, `offCheckers.value = state.off`.
-     - `bgammonState.value = state` (pour le panneau debug et le cube/score).
+     - `state.value = state` (pour le panneau debug et le cube/score).
 
-3. **Rendu**
+2. **Rendu**
    - Les pions superposés reflètent toujours `state.checkers`.
    - Le panneau debug montre les infos cube/score/dés/mouvements.
    - `DoublingCube.vue` reçoit en lecture seule `cubeValue` / `cubeOwner`.
@@ -207,14 +197,13 @@ Pour modifier la palette :
 
 ## Tests GameBoard.vue
 
-Les tests Vue dans `tests/GameBoard.spec.ts` valident l’intégration graphique avec un état bgammon mocké :
+Les tests Vue dans `tests/GameBoard.spec.ts` valident l’intégration graphique avec un état mocké :
 
 - **Mock de géométrie** :
   - `@/config/boardGeometry` est mocké avec des constantes `BOARD_OFFSETS` et `BOARD_BOUNDS` simplifiées pour éviter les dépendances au fichier TS réel.
 
-- **Mock de bgammonClient** :
-  - `@/services/bgammonClient` est mocké pour exposer `connect/subscribe/...` sans WebSocket réel.
-  - Le test récupère le handler passé à `subscribe` et lui injecte un `BgammonState` synthétique contenant :
+- **Mock de données** :
+  - Le test récupère le handler passé à `subscribe` et lui injecte un état synthétique contenant :
     - `dice`, `checkers` (2 blancs sur le point 1, 1 noir sur le point 6),
     - `scoreUser`, `scoreOpponent`,
     - `cubeValue`, `cubeOwner`.
@@ -233,8 +222,8 @@ Les tests Vue dans `tests/GameBoard.spec.ts` valident l’intégration graphique
 Ces tests garantissent que :
 
 - Le plateau premium est bien chargé.
-- Le mapping `bgammonState.checkers` → `checkers` (x/y) respecte la géométrie globale.
-- Les informations de cube et de score issues de bgammon sont bien affichées dans l’UI.
+- Le mapping `checkers` → `checkers` (x/y) respecte la géométrie globale.
+- Les informations de cube et de score issues de l’état sont bien affichées dans l’UI.
 
 ## Licences
 

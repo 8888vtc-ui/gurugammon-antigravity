@@ -1,4 +1,5 @@
 jest.mock('../../src/server', () => require('../utils/prismaMock'));
+jest.mock('../../src/lib/prisma', () => require('../utils/prismaMock'));
 
 import { gnubgService } from '../../src/services/gnubgService';
 import { setupTestDatabase, seedUser } from '../utils/db';

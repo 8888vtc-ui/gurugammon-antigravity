@@ -10,6 +10,10 @@ jest.mock('../src/server', () => {
   const { prisma } = require('./utils/prismaMock');
   return { prisma };
 });
+jest.mock('../src/lib/prisma', () => {
+  const { prisma } = require('./utils/prismaMock');
+  return { prisma };
+});
 
 import authRouter from '../src/routes/auth';
 import { prisma, setupTestDatabase } from './utils/db';

@@ -2,6 +2,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import request from 'supertest';
 
 jest.mock('../src/server', () => require('./utils/prismaMock'));
+jest.mock('../src/lib/prisma', () => require('./utils/prismaMock'));
 jest.mock('../src/middleware/rateLimiter', () => ({
   createRateLimiter: () => (_req: Request, _res: Response, next: NextFunction) => next()
 }));

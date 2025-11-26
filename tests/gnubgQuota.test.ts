@@ -31,6 +31,7 @@ type ProviderMocks = {
 };
 
 jest.mock('../src/server', () => require('./utils/prismaMock'));
+jest.mock('../src/lib/prisma', () => require('./utils/prismaMock'));
 
 jest.mock('../src/providers/gnubgProvider', () => {
   const providerMocks: ProviderMocks = {

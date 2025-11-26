@@ -12,7 +12,7 @@ jest.mock('../../src/config', () => ({
   }
 }));
 
-jest.mock('../../src/server', () => ({
+jest.mock('../../src/lib/prisma', () => ({
   prisma: {
     $transaction: (...args: unknown[]) => transactionMock(...args)
   }

@@ -1,5 +1,5 @@
 import { TournamentService } from '../../src/services/tournamentService';
-import { prisma } from '../../src/server';
+import { prisma } from '../../src/lib/prisma';
 import { broadcastTournamentEvent } from '../../src/websocket/tournamentServer.js';
 import { notificationService } from '../../src/services/notificationService';
 import {
@@ -57,7 +57,7 @@ jest.mock('../../src/metrics/tournamentMetrics', () => ({
   }
 }));
 
-jest.mock('../../src/server', () => {
+jest.mock('../../src/lib/prisma', () => {
   const tournaments = {
     findUnique: jest.fn(),
     create: jest.fn(),

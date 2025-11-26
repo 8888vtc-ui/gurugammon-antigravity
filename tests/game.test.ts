@@ -10,6 +10,11 @@ jest.mock('../src/server', () => {
   };
 });
 
+jest.mock('../src/lib/prisma', () => {
+  const { prisma } = require('./utils/prismaMock');
+  return { prisma };
+});
+
 import gamesRouter from '../src/routes/games';
 import { AIService, QuotaExceededError } from '../src/services/aiService';
 import { setTestUser } from './__mocks__/authMiddleware';

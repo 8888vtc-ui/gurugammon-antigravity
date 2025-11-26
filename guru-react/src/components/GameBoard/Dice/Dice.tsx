@@ -8,32 +8,27 @@ export interface DiceProps {
 }
 
 export const Dice: FC<DiceProps> = ({ dice, isRolling = false }) => {
-    const renderPips = (value: number) => {
-        const pipPositions: Record<number, number[][]> = {
-            1: [[1, 1]],
-            2: [[0, 0], [2, 2]],
-            3: [[0, 0], [1, 1], [2, 2]],
-            4: [[0, 0], [0, 2], [2, 0], [2, 2]],
-            5: [[0, 0], [0, 2], [1, 1], [2, 0], [2, 2]],
-            6: [[0, 0], [0, 1], [0, 2], [2, 0], [2, 1], [2, 2]]
-        };
+    const dotPositions = [
+        [], // 0 (not used)
+        ['center'], // 1
+        ['top-left', 'bottom-right'], // 2
+        ['top-left', 'center', 'bottom-right'], // 3
+        ['top-left', 'top-right', 'bottom-left', 'bottom-right'], // 4
+        ['top-left', 'top-right', 'center', 'bottom-left', 'bottom-right'], // 5
+        ['top-left', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-right'], // 6
+    ];
 
-        const positions = pipPositions[value] || [];
-
-        return (
-            <div className="die-face">
-                {positions.map(([row, col], index) => (
-                    <div
-                        key={`pip-${index}`}
-                        className="die-pip"
-                        style={{
-                            gridRow: row + 1,
-                            gridColumn: col + 1
-                        }}
-                    />
-                ))}
-            </div>
-        );
+    const getPositionClass = (position: string) => {
+        switch (position) {
+            case 'top-left': return 'top-1 left-1';
+            case 'top-right': return 'top-1 right-1';
+            case 'middle-left': return 'top-1/2 left-1 -translate-y-1/2';
+            case 'middle-right': return 'top-1/2 right-1 -translate-y-1/2';
+            case 'bottom-left': return 'bottom-1 left-1';
+            case 'bottom-right': return 'bottom-1 right-1';
+            case 'center': return 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2';
+            default: return '';
+        }
     };
 
     return (
@@ -57,7 +52,18 @@ export const Dice: FC<DiceProps> = ({ dice, isRolling = false }) => {
                         ease: 'easeOut'
                     }}
                 >
-                    {renderPips(value)}
+                    <motion.div 
+                        className="relative w-16 h-16 bg-gray-200 rounded-md shadow-inner flex justify-center items-center"
+                        animate={isRolling ? { rotate: 360 } : { rotate: 0 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                    >
+                        {dotPositions[value]?.map((position) => (
+                            <div 
+                                key={position}
+                                className={`absolute w-3 h-3 bg-black rounded-full ${getPositionClass(position)}`}
+                            />
+                        ))}
+                    </motion.div>
                 </motion.div>
             ))}
         </div>

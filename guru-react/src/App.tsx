@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
-import './App.css'
-import { GameBoard } from './components/GameBoard/GameBoard'
-import { GameChat } from './components/GameChat/GameChat'
-import { MoveHistory } from './components/MoveHistory/MoveHistory'
-import { useBackgammon } from './hooks/useBackgammon'
-import { soundService } from './services/soundService'
-import { apiClient } from './api/client'
+import { useEffect, useRef, useState } from 'react';
+import './App.css';
+import { GameBoard } from './components/GameBoard/GameBoard';
+import { GameChat } from './components/GameChat/GameChat';
+import { MoveHistory } from './components/MoveHistory/MoveHistory';
+import { useBackgammon } from './hooks/useBackgammon';
+import soundService from './services/soundService';
+import { apiClient } from './api/client';
 
 function App() {
   const [gameId, setGameId] = useState<string | null>(null)
@@ -51,7 +51,6 @@ function App() {
     try {
       await rollDice()
     } catch (err) {
-      // En cas d'erreur, arrêter rapidement l'animation
       setIsRollingDice(false)
       rollStartRef.current = null
       throw err
@@ -82,7 +81,7 @@ function App() {
 
     const prev = lastMoveRef.current
     if (!prev || prev.from !== last.from || prev.to !== last.to) {
-      soundService.playMove()
+      soundService.playCheckerMove()
       lastMoveRef.current = last
     }
   }, [gameState.lastMove])
@@ -94,7 +93,7 @@ function App() {
 
     if (lastWinnerRef.current === winner) return
 
-    soundService.playGameEnd(winner)
+    soundService.gameWinSound()
     lastWinnerRef.current = winner
   }, [gameState.winner])
 

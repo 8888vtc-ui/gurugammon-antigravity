@@ -1,8 +1,8 @@
 import type { MatchmakingStatusEvent, MatchmakingMatchFoundEvent } from '../../src/services/matchmakingService.js';
 import { MatchmakingService } from '../../src/services/matchmakingService.js';
-import { prisma } from '../../src/server';
+import { prisma } from '../../src/lib/prisma';
 
-jest.mock('../../src/server', () => {
+jest.mock('../../src/lib/prisma', () => {
   const create = jest.fn().mockResolvedValue(undefined);
   return {
     prisma: {

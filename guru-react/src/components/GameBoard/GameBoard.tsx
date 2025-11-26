@@ -1,6 +1,6 @@
-import { type FC } from 'react';
+import React from 'react';
+import Checker from './Checker';
 import { LayoutGroup, motion } from 'framer-motion';
-import { Checker } from './Checker';
 import './GameBoard.css';
 import './Interactive.css';
 
@@ -27,7 +27,7 @@ export interface GameBoardProps {
     onPointClick?: (pointIndex: number) => void;
 }
 
-export const GameBoard: FC<GameBoardProps> = ({
+export const GameBoard: React.FC<GameBoardProps> = ({
     board,
     whiteBar,
     blackBar,
@@ -110,8 +110,8 @@ export const GameBoard: FC<GameBoardProps> = ({
                         {Array.from({ length: Math.min(absoluteCount, 5) }).map((_, i) => (
                             <Checker
                                 key={`checker-${boardIndex}-${i}`}
-                                player={player}
-                                position={{ point: boardIndex, stack: i }}
+                                color={player}
+                                isSelected={false}
                             />
                         ))}
                         {absoluteCount > 5 && (
@@ -201,8 +201,8 @@ export const GameBoard: FC<GameBoardProps> = ({
                                     {Array.from({ length: whiteBar }).map((_, i) => (
                                         <Checker
                                             key={`bar-white-${i}`}
-                                            player="white"
-                                            position={{ point: -1, stack: i }}
+                                            color="white"
+                                            isSelected={false}
                                         />
                                     ))}
                                 </div>
@@ -242,8 +242,8 @@ export const GameBoard: FC<GameBoardProps> = ({
                                     {Array.from({ length: blackBar }).map((_, i) => (
                                         <Checker
                                             key={`bar-black-${i}`}
-                                            player="black"
-                                            position={{ point: 24, stack: i }}
+                                            color="black"
+                                            isSelected={false}
                                         />
                                     ))}
                                 </div>
