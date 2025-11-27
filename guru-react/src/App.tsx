@@ -6,6 +6,8 @@ import { MoveHistory } from './components/MoveHistory/MoveHistory';
 import { useBackgammon } from './hooks/useBackgammon';
 import soundService from './services/soundService';
 import { apiClient } from './api/client';
+import { LoginForm } from './components/auth/LoginForm';
+import { RegisterForm } from './components/auth/RegisterForm';
 
 function App() {
   const [gameId, setGameId] = useState<string | null>(null)
@@ -13,9 +15,31 @@ function App() {
   const [isRollingDice, setIsRollingDice] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
   const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [showAuthPanel, setShowAuthPanel] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
   const rollStartRef = useRef<number | null>(null)
   const lastMoveRef = useRef<{ from: number; to: number } | null>(null)
   const lastWinnerRef = useRef<string | null>(null)
+
+  // Initialiser l'état d'authentification à partir du token stocké
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') return
+    const token = localStorage.getItem('authToken')
+    setIsAuthenticated(!!token)
+  }, [])
+
+  const handleAuthenticated = () => {
+    setIsAuthenticated(true)
+    setShowAuthPanel(false)
+  }
+
+  const handleLogout = () => {
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+      localStorage.removeItem('authToken')
+    }
+    setIsAuthenticated(false)
+  }
 
   // Initialisation de la partie via API
   const startGame = async (mode: 'AI_VS_PLAYER' | 'PLAYER_VS_PLAYER') => {
@@ -117,6 +141,43 @@ function App() {
         <header className="app-header">
           <div className="container flex justify-between items-center">
             <h1 className="app-title text-glow-purple">GuruGammon</h1>
+            <div className="header-actions">
+              <span style={{ color: 'white', marginRight: '0.5rem', fontSize: '0.9rem' }}>
+                {isAuthenticated ? 'Logged in' : 'Guest (local only)'}
+              </span>
+              {isAuthenticated ? (
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => {
+                      setShowAuthPanel(true)
+                      setAuthMode('login')
+                    }}
+                  >
+                    Login
+                  </button>
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    onClick={() => {
+                      setShowAuthPanel(true)
+                      setAuthMode('register')
+                    }}
+                  >
+                    Register
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </header>
         <main className="app-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
@@ -137,6 +198,15 @@ function App() {
               Play vs Human (Local/Online)
             </button>
           </div>
+          {showAuthPanel && (
+            <div style={{ marginTop: '2rem', display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+              {authMode === 'login' ? (
+                <LoginForm onAuthenticated={handleAuthenticated} />
+              ) : (
+                <RegisterForm onRegistered={handleAuthenticated} />
+              )}
+            </div>
+          )}
         </main>
       </div>
     )
