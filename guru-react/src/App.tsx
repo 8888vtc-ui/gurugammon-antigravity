@@ -11,29 +11,43 @@ function App() {
   const [gameId, setGameId] = useState<string | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [isRollingDice, setIsRollingDice] = useState(false)
+  const [hasStarted, setHasStarted] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
   const rollStartRef = useRef<number | null>(null)
   const lastMoveRef = useRef<{ from: number; to: number } | null>(null)
   const lastWinnerRef = useRef<string | null>(null)
 
   // Initialisation de la partie via API
   const startGame = async (mode: 'AI_VS_PLAYER' | 'PLAYER_VS_PLAYER') => {
+    // L'utilisateur a choisi un mode : on quitte l'écran de sélection
+    setHasStarted(true)
+    setConnectionError(null)
+    setIsConnected(false)
+
     try {
-      // Créer une nouvelle partie
+      // Créer une nouvelle partie côté backend (mode en ligne)
       const response = await apiClient.createGame<any>({
         gameType: 'match',
         stake: 100,
         game_mode: mode
       });
 
-      const newGameId = response.id || response.data?.id;
+      const anyResp = response as any
+      const newGameId = anyResp?.data?.id ?? anyResp?.id
+
       if (newGameId) {
-        console.log('Game initialized via API:', newGameId);
-        setGameId(newGameId);
-        setIsConnected(true);
+        console.log('Game initialized via API:', newGameId)
+        setGameId(String(newGameId))
+        setIsConnected(true)
+        setConnectionError(null)
+      } else {
+        // Réponse inattendue : on reste en mode local
+        setConnectionError('Online mode unavailable, starting a local game instead.')
       }
     } catch (err) {
       console.error('Failed to initialize game via API, falling back to local mode:', err);
-      setIsConnected(false);
+      setIsConnected(false)
+      setConnectionError('Online mode unavailable, playing in local mode.')
     }
   };
 
@@ -97,7 +111,7 @@ function App() {
     lastWinnerRef.current = winner
   }, [gameState.winner])
 
-  if (!gameId) {
+  if (!hasStarted) {
     return (
       <div className="app">
         <header className="app-header">
@@ -171,6 +185,11 @@ function App() {
             <span>Current Turn: <strong>{gameState.currentPlayer.toUpperCase()}</strong></span>
             {gameState.winner && <span style={{ color: '#4ade80' }}>WINNER: {gameState.winner.toUpperCase()}!</span>}
           </div>
+          {connectionError && (
+            <div style={{ marginBottom: '0.75rem', color: '#f97316' }}>
+              {connectionError}
+            </div>
+          )}
           {error && (
             <div style={{ marginBottom: '0.75rem', color: '#f97316' }}>
               {error}
