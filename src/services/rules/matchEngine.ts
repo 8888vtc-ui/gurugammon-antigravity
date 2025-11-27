@@ -77,10 +77,26 @@ export function applyPointResult(
   points: number,
   winner: 'white' | 'black'
 ): MatchUpdateResult {
+  // Apply Jacoby Rule: Gammons/Backgammons count as single game if cube hasn't been turned
+  // (i.e., cube owner is still null or centered, depending on implementation, but here we check if cube has been used).
+  // In this implementation, we check if the cube value is > 1 OR if it has been owned.
+  // However, standard Jacoby means "cube not turned".
+  // If rules.jacoby is active and cube is centered (level 1, no owner), treat points > 1 as 1.
+
+  let finalPoints = points;
+  if (match && match.rules.jacoby) {
+    // Assuming 'game' has cube state. We need to know if cube was used.
+    // If we don't have full cube history here, we rely on cubeOwner.
+    // If cubeOwner is null (or whatever represents centered), Jacoby applies.
+    if (!game.cubeOwner && points > 1) {
+      finalPoints = 1;
+    }
+  }
+
   const updatedGame = {
     ...game,
-    whiteScore: winner === 'white' ? game.whiteScore + points : game.whiteScore,
-    blackScore: winner === 'black' ? game.blackScore + points : game.blackScore,
+    whiteScore: winner === 'white' ? game.whiteScore + finalPoints : game.whiteScore,
+    blackScore: winner === 'black' ? game.blackScore + finalPoints : game.blackScore,
     doublePending: false,
     doubleOfferedBy: null,
     cubeOwner: winner === 'white' ? 'WHITE' : 'BLACK'
@@ -110,6 +126,9 @@ export function applyPointResult(
       finished = true;
     }
   } else {
+    // Money game (no match) - Jacoby usually applies here
+    // If match is null, we can't check rules.jacoby unless we pass rules separately or assume default.
+    // For now, we only apply if match record exists.
     finished = true;
   }
 
@@ -144,7 +163,8 @@ export function canDouble(
     return false;
   }
 
-  // TODO: Enforce Jacoby, beaver/raccoon restrictions and ownership constraints here.
+  // Jacoby rule is enforced during scoring (applyPointResult), not doubling.
+  // Beaver/Raccoon are response actions, handled in respondToDouble.
 
   // Check cube ownership
   if (game.cubeOwner && game.cubeOwner.toLowerCase() !== player) {

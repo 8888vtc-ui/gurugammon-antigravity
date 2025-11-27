@@ -188,6 +188,21 @@ export const apiClient = {
       body: payload,
       signal: options.signal
     });
+  },
+
+  offerDouble<TResponse = unknown>(gameId: string | number, options: { signal?: AbortSignal } = {}) {
+    return request<TResponse>(`/api/games/${gameId}/double`, {
+      method: 'POST',
+      signal: options.signal
+    });
+  },
+
+  respondToDouble<TResponse = unknown>(gameId: string | number, accept: boolean, beaver: boolean = false, raccoon: boolean = false, options: { signal?: AbortSignal } = {}) {
+    return request<TResponse>(`/api/games/${gameId}/double/respond`, {
+      method: 'POST',
+      body: { accept, beaver, raccoon },
+      signal: options.signal
+    });
   }
 };
 

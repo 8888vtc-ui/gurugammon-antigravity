@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import Checker from './Checker';
-import { LayoutGroup, motion } from 'framer-motion';
+import { LayoutGroup, motion, AnimatePresence } from 'framer-motion';
+import { soundManager } from '../../utils/SoundManager';
 import './GameBoard.css';
 import './Interactive.css';
 
@@ -43,6 +44,29 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     validMoves,
     onPointClick
 }) => {
+    // Sound Effects Integration
+    const prevDiceRef = useRef(dice);
+    const prevBoardRef = useRef(board);
+
+    useEffect(() => {
+        // Play dice sound when dice change and are not [0,0]
+        if (dice[0] !== 0 && (dice[0] !== prevDiceRef.current[0] || dice[1] !== prevDiceRef.current[1])) {
+            soundManager.play('diceRoll');
+        }
+        prevDiceRef.current = dice;
+    }, [dice]);
+
+    useEffect(() => {
+        // Simple heuristic for move sounds: if board changes, play sound
+        // In a real app, we might want to distinguish between move and hit based on logic
+        const boardChanged = board.some((count, i) => count !== prevBoardRef.current[i]);
+        if (boardChanged) {
+            soundManager.play('checkerMove');
+        }
+        prevBoardRef.current = board;
+    }, [board]);
+
+
     // Dynamic Lighting Effect
     const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
         const rect = e.currentTarget.getBoundingClientRect();
@@ -105,22 +129,22 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 <div className="point-triangle">
                     <div className="point-number">{pointNumber}</div>
                 </div>
-                {absoluteCount > 0 && (
-                    <div className="checkers-stack">
+                <div className="checkers-stack">
+                    <AnimatePresence mode='popLayout'>
                         {Array.from({ length: Math.min(absoluteCount, 5) }).map((_, i) => (
                             <Checker
-                                key={`checker-${boardIndex}-${i}`}
+                                key={`checker-${boardIndex}-${i}`} // Stable key for layout animations? Ideally should be unique ID if possible
                                 color={player}
                                 isSelected={false}
                             />
                         ))}
-                        {absoluteCount > 5 && (
-                            <div className={`checker-count checker-count-${player}`}>
-                                +{absoluteCount - 5}
-                            </div>
-                        )}
-                    </div>
-                )}
+                    </AnimatePresence>
+                    {absoluteCount > 5 && (
+                        <div className={`checker-count checker-count-${player}`}>
+                            +{absoluteCount - 5}
+                        </div>
+                    )}
+                </div>
             </div>
         );
     };
@@ -168,10 +192,26 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     <motion.div
                         key={`die-${index}`}
                         className="die"
-                        animate={isRollingDice ? { rotate: [0, 25, -25, 0], y: [0, -6, 0, -3] } : { rotate: 0, y: 0 }}
-                        transition={isRollingDice ? { duration: 0.4, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
+                        animate={isRollingDice ? {
+                            rotate: [0, 360, 720],
+                            y: [0, -20, 0],
+                            scale: [1, 1.1, 1]
+                        } : {
+                            rotate: 0,
+                            y: 0,
+                            scale: 1
+                        }}
+                        transition={isRollingDice ? {
+                            duration: 0.6,
+                            repeat: Infinity,
+                            ease: 'easeInOut'
+                        } : {
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 20
+                        }}
                     >
-                        {isRollingDice ? <div className="die-face" /> : renderPips(value)}
+                        {isRollingDice ? <div className="die-face blur-effect" /> : renderPips(value)}
                     </motion.div>
                 ))}
             </div>
@@ -198,13 +238,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                         <div className="bar">
                             {whiteBar > 0 && (
                                 <div className="bar-checkers bar-checkers-top">
-                                    {Array.from({ length: whiteBar }).map((_, i) => (
-                                        <Checker
-                                            key={`bar-white-${i}`}
-                                            color="white"
-                                            isSelected={false}
-                                        />
-                                    ))}
+                                    <AnimatePresence mode='popLayout'>
+                                        {Array.from({ length: whiteBar }).map((_, i) => (
+                                            <Checker
+                                                key={`bar-white-${i}`}
+                                                color="white"
+                                                isSelected={false}
+                                            />
+                                        ))}
+                                    </AnimatePresence>
                                 </div>
                             )}
                         </div>
@@ -239,13 +281,15 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                         <div className="bar">
                             {blackBar > 0 && (
                                 <div className="bar-checkers bar-checkers-bottom">
-                                    {Array.from({ length: blackBar }).map((_, i) => (
-                                        <Checker
-                                            key={`bar-black-${i}`}
-                                            color="black"
-                                            isSelected={false}
-                                        />
-                                    ))}
+                                    <AnimatePresence mode='popLayout'>
+                                        {Array.from({ length: blackBar }).map((_, i) => (
+                                            <Checker
+                                                key={`bar-black-${i}`}
+                                                color="black"
+                                                isSelected={false}
+                                            />
+                                        ))}
+                                    </AnimatePresence>
                                 </div>
                             )}
                         </div>
@@ -262,18 +306,30 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                     <div className="off-section off-white" onClick={() => onPointClick?.(24)}>
                         <div className="off-label">White Off</div>
                         <div className="off-checkers">
-                            {Array.from({ length: whiteOff }).map((_, i) => (
-                                <div key={`off-white-${i}`} className="checker checker-white checker-small" />
-                            ))}
+                            <AnimatePresence mode='popLayout'>
+                                {Array.from({ length: whiteOff }).map((_, i) => (
+                                    <Checker
+                                        key={`off-white-${i}`}
+                                        color="white"
+                                        isSelected={false}
+                                    />
+                                ))}
+                            </AnimatePresence>
                         </div>
                     </div>
 
                     <div className="off-section off-black" onClick={() => onPointClick?.(-1)}>
                         <div className="off-label">Black Off</div>
                         <div className="off-checkers">
-                            {Array.from({ length: blackOff }).map((_, i) => (
-                                <div key={`off-black-${i}`} className="checker checker-black checker-small" />
-                            ))}
+                            <AnimatePresence mode='popLayout'>
+                                {Array.from({ length: blackOff }).map((_, i) => (
+                                    <Checker
+                                        key={`off-black-${i}`}
+                                        color="black"
+                                        isSelected={false}
+                                    />
+                                ))}
+                            </AnimatePresence>
                         </div>
                     </div>
                 </div>

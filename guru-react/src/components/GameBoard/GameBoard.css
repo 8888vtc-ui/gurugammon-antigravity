@@ -2,27 +2,26 @@
 
 :root {
     /* Palette Premium */
-    --color-wood-dark: #3e2723;
-    --color-wood-medium: #5d4037;
+    --color-wood-dark: #2d1b18;
+    --color-wood-medium: #4a3028;
     --color-wood-light: #8d6e63;
-    --color-wood-border: #281815;
+    --color-wood-border: #1a100e;
 
-    --color-felt-dark: #1b5e20;
-    --color-felt-light: #2e7d32;
-    --color-felt-texture: rgba(0, 0, 0, 0.15);
+    --color-felt-dark: #0a2f14;
+    --color-felt-light: #1b5e20;
 
     --color-gold: #ffd700;
     --color-brass: #b5a642;
     --color-silver: #e0e0e0;
 
-    --shadow-depth: 0 10px 30px rgba(0, 0, 0, 0.5);
-    --shadow-inner: inset 0 2px 10px rgba(0, 0, 0, 0.4);
+    --shadow-depth: 0 20px 50px rgba(0, 0, 0, 0.6);
+    --shadow-inner: inset 0 2px 10px rgba(0, 0, 0, 0.5);
 
-    /* Checker Colors */
-    --checker-white-base: #f5f5f5;
-    --checker-white-shadow: #dcdcdc;
-    --checker-black-base: #212121;
-    --checker-black-shadow: #000000;
+    /* Checker Colors - Ultra Realistic */
+    --checker-white-base: #f0f0f0;
+    --checker-white-rim: #ffffff;
+    --checker-black-base: #1a1a1a;
+    --checker-black-rim: #333333;
 }
 
 .game-board-container {
@@ -30,106 +29,142 @@
     flex-direction: column;
     align-items: center;
 
-    /* Realistic Felt Surface */
-    background-color: var(--color-felt-dark);
+    /* Realistic Table Surface */
+    background-color: #1a1a1a;
     background-image:
-        radial-gradient(circle at 50% 50%, transparent 0%, rgba(0, 0, 0, 0.4) 100%),
-        url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
-    padding: var(--spacing-md);
-    border-radius: 8px;
-    box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.05);
+        radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.8) 100%),
+        url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+    padding: var(--spacing-xl);
+    border-radius: 12px;
+    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.9);
+    min-height: 100vh;
+    justify-content: center;
 }
 
-/* Main board frame */
+/* Main board frame - The "Cabinet" */
 .game-board {
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-md);
+
+    /* Rich Wood Texture */
     background:
-        radial-gradient(circle at 20% 0%, rgba(255, 255, 255, 0.08), transparent 60%),
-        radial-gradient(circle at 80% 100%, rgba(0, 0, 0, 0.45), transparent 70%),
-        linear-gradient(135deg, var(--color-wood-medium), var(--color-wood-dark));
-    padding: var(--board-padding, var(--spacing-md));
-    border-radius: 16px;
-    border: 10px solid var(--color-wood-border);
-    box-shadow: var(--shadow-depth);
+        linear-gradient(135deg, rgba(74, 48, 40, 0.95), rgba(45, 27, 24, 0.98)),
+        url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='wood'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05 0.005' numOctaves='2' result='noise'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23wood)' opacity='0.1'/%3E%3C/svg%3E");
+
+    padding: var(--board-padding, var(--spacing-xl));
+    border-radius: 24px;
+    border: 16px solid var(--color-wood-border);
+    box-shadow:
+        var(--shadow-depth),
+        inset 0 0 20px rgba(0, 0, 0, 0.8),
+        0 0 0 2px rgba(255, 255, 255, 0.05);
+    /* Subtle highlight edge */
 }
 
-/* Top and bottom rows of 12 points */
+/* Dynamic Lighting Overlay */
+.game-board::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle 800px at var(--light-x, 50%) var(--light-y, 50%),
+            rgba(255, 255, 255, 0.03),
+            transparent 80%);
+    pointer-events: none;
+    border-radius: 8px;
+    z-index: 2;
+}
+
+/* Playing Surface - The "Felt" */
 .board-half {
     display: flex;
     flex-direction: row;
     align-items: stretch;
     justify-content: space-between;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-md);
+    background-color: var(--color-felt-dark);
+    background-image:
+        radial-gradient(circle at 50% 50%, var(--color-felt-light) 0%, var(--color-felt-dark) 100%),
+        url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.12'/%3E%3C/svg%3E");
+    border-radius: 8px;
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+    position: relative;
+    overflow: hidden;
 }
 
 .board-top,
 .board-bottom {
-    height: calc(var(--point-height) + var(--spacing-md));
+    height: calc(var(--point-height) + var(--spacing-xl));
+    padding: var(--spacing-sm);
 }
 
 .quadrant {
     display: flex;
     flex: 1;
     gap: 2px;
+    z-index: 1;
 }
 
+/* The Bar - Hinge Area */
 .bar {
     width: var(--bar-width);
-    /* Wood texture for bar */
-    background: linear-gradient(90deg, #3e2723 0%, #5d4037 20%, #3e2723 50%, #5d4037 80%, #3e2723 100%);
-    border-left: 4px solid rgba(0, 0, 0, 0.3);
-    border-right: 4px solid rgba(0, 0, 0, 0.3);
+    background: linear-gradient(90deg, #2d1b18 0%, #3e2723 20%, #2d1b18 50%, #3e2723 80%, #2d1b18 100%);
+    border-left: 2px solid rgba(0, 0, 0, 0.5);
+    border-right: 2px solid rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
-    justify-content: space-around;
-    padding: var(--spacing-sm);
-    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+    justify-content: center;
+    align-items: center;
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.9);
     position: relative;
+    z-index: 5;
 }
 
-/* Metallic hinge effect on bar */
+/* Metallic Hinge */
 .bar::before {
     content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     width: 60%;
-    height: 40px;
-    background: linear-gradient(90deg, #b5a642 0%, #ffd700 50%, #b5a642 100%);
+    height: 60px;
+    background: linear-gradient(90deg, #8a7338 0%, #d4af37 40%, #f9eeb8 50%, #d4af37 60%, #8a7338 100%);
     border-radius: 4px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-    opacity: 0.8;
+    box-shadow:
+        0 2px 10px rgba(0, 0, 0, 0.8),
+        inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    opacity: 0.9;
 }
 
 .bar-checkers {
+    position: absolute;
     display: flex;
     flex-direction: column;
-    gap: -5px;
-    /* Overlap checkers slightly */
-    max-height: 100%;
-    overflow: visible;
+    gap: -8px;
     z-index: 10;
     align-items: center;
+    width: 100%;
 }
 
+.bar-checkers-top {
+    top: var(--spacing-md);
+}
+
+.bar-checkers-bottom {
+    bottom: var(--spacing-md);
+}
+
+/* Middle Section - Dice & Cube */
 .board-middle {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--spacing-md) var(--spacing-xl);
-    background: linear-gradient(180deg, #2d1b18 0%, #4a3028 50%, #2d1b18 100%);
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
+    padding: var(--spacing-sm) var(--spacing-2xl);
+    height: 80px;
+    background: transparent;
+    z-index: 10;
 }
 
-/* Off Sections - Tray Style */
+/* Off Sections - The "Tray" */
 .off-section {
     position: absolute;
     display: flex;
@@ -138,42 +173,42 @@
     gap: var(--spacing-sm);
     padding: var(--spacing-lg);
     background: linear-gradient(145deg, #3e2723, #2d1b18);
-    border: 4px solid #1a100e;
-    border-radius: 12px;
-    min-width: 150px;
+    border: 8px solid #1a100e;
+    border-radius: 16px;
+    min-width: 160px;
     box-shadow:
-        0 10px 25px rgba(0, 0, 0, 0.5),
-        inset 0 2px 5px rgba(255, 255, 255, 0.05);
-    transition: transform 0.2s, box-shadow 0.2s;
+        0 20px 40px rgba(0, 0, 0, 0.6),
+        inset 0 2px 10px rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
     cursor: pointer;
 }
 
 .off-section:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6);
-    border-color: var(--color-gold);
+    transform: translateY(-4px);
+    border-color: var(--color-wood-light);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
 }
 
 .off-white {
     top: var(--spacing-xl);
-    right: -190px;
+    right: -220px;
 }
 
 .off-black {
     bottom: var(--spacing-xl);
-    right: -190px;
+    right: -220px;
 }
 
 .off-label {
-    font-size: 0.9rem;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--color-brass);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
     font-family: 'Cinzel', serif;
-    /* Premium font if available, fallback serif */
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-brass);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    letter-spacing: 2px;
+    text-transform: uppercase;
     border-bottom: 1px solid rgba(181, 166, 66, 0.3);
-    padding-bottom: 4px;
+    padding-bottom: 8px;
     width: 100%;
     text-align: center;
 }
@@ -184,235 +219,203 @@
     gap: 4px;
     justify-content: center;
     align-items: center;
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.3);
     border-radius: 8px;
-    padding: 8px;
+    padding: 12px;
     width: 100%;
-    min-height: 60px;
-    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+    min-height: 80px;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
-/* Current Player Indicator - Badge Style */
+/* Current Player Indicator */
 .current-player-indicator {
+    position: absolute;
+    left: -220px;
+    top: 50%;
+    transform: translateY(-50%);
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: var(--spacing-md);
-    padding: 12px 24px;
-    background: linear-gradient(135deg, #2d1b18 0%, #3e2723 100%);
-    border: 1px solid var(--color-brass);
-    border-radius: 30px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
-    font-family: 'Cinzel', serif;
-    color: var(--color-silver);
-    position: relative;
-    overflow: hidden;
+    padding: 20px;
+    background: linear-gradient(135deg, #2d1b18 0%, #1a100e 100%);
+    border: 2px solid var(--color-brass);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    min-width: 160px;
 }
 
-.current-player-indicator::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 50%;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), transparent);
-    pointer-events: none;
+.indicator-text {
+    font-family: 'Cinzel', serif;
+    color: var(--color-silver);
+    font-size: 1.1rem;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .indicator-dot {
-    width: 18px;
-    height: 18px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
 }
 
 .indicator-dot.white {
-    background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+    background: #f0f0f0;
+    border: 2px solid #fff;
 }
 
 .indicator-dot.black {
-    background: radial-gradient(circle at 30% 30%, #444, #000);
+    background: #1a1a1a;
+    border: 2px solid #444;
 }
 
-/* Checker Styles - Ultra Realistic */
+/* CHECKER STYLES - The Crown Jewel */
 .checker {
     width: var(--checker-size);
     height: var(--checker-size);
     border-radius: 50%;
     position: relative;
-    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     cursor: grab;
-    z-index: 1;
+    z-index: 10;
+    /* Hardware acceleration for smooth animation */
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .checker:active {
     cursor: grabbing;
-    transform: scale(1.05);
+    z-index: 100;
 }
 
-/* 3D Shape & Shadow */
+/* 3D Body */
 .checker::after {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     border-radius: 50%;
     box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.1),
-        /* Rim highlight */
-        inset 0 -4px 6px rgba(0, 0, 0, 0.4),
-        /* Bottom shadow for bevel */
-        0 4px 6px rgba(0, 0, 0, 0.4);
-    /* Drop shadow */
+        /* Deep shadow for height */
+        0 6px 8px rgba(0, 0, 0, 0.5),
+        /* Ambient occlusion */
+        0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Inner indentation */
+/* Inner Detail - The "Dish" */
 .checker::before {
     content: '';
     position: absolute;
-    top: 15%;
-    left: 15%;
-    right: 15%;
-    bottom: 15%;
+    inset: 12%;
     border-radius: 50%;
     background: linear-gradient(135deg, rgba(0, 0, 0, 0.1) 0%, rgba(255, 255, 255, 0.1) 100%);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.4),
+        0 1px 1px rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* White Checker - Marble/Acrylic Look */
 .checker-white {
-    background: radial-gradient(circle at 30% 30%, #ffffff 0%, #e0e0e0 40%, #bdbdbd 100%);
-    border: 1px solid #9e9e9e;
+    background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e0e0e0 40%, #bdbdbd 100%);
+    border: 1px solid #a0a0a0;
 }
 
+.checker-white::after {
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.8),
+        /* Rim highlight */
+        inset 0 -4px 8px rgba(0, 0, 0, 0.2),
+        /* Bottom shade */
+        0 6px 10px rgba(0, 0, 0, 0.4);
+    /* Drop shadow */
+}
+
+/* Black Checker - Obsidian/Onyx Look */
 .checker-black {
-    background: radial-gradient(circle at 30% 30%, #616161 0%, #212121 40%, #000000 100%);
+    background: radial-gradient(circle at 35% 35%, #555555 0%, #1a1a1a 50%, #000000 100%);
     border: 1px solid #000000;
 }
 
+.checker-black::after {
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.15),
+        /* Subtle rim */
+        inset 0 -4px 8px rgba(0, 0, 0, 0.8),
+        0 6px 10px rgba(0, 0, 0, 0.6);
+}
+
+/* Selection Glow */
+.checker-selected {
+    box-shadow: 0 0 0 3px var(--color-gold), 0 0 20px var(--color-gold) !important;
+    z-index: 50;
+}
+
+/* Small checker for off-board */
 .checker-small {
     width: 2rem;
     height: 2rem;
 }
 
-.checker:hover {
-    transform: translateY(-4px) scale(1.02);
-    z-index: 100;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+/* Responsive Adjustments */
+@media (max-width: 1600px) {
+
+    .off-white,
+    .off-black {
+        right: -180px;
+    }
+
+    .current-player-indicator {
+        left: -180px;
+    }
 }
 
-/* Responsive Design Updates */
 @media (max-width: 1400px) {
     :root {
-        --checker-size: 2.5rem;
-        --point-width: 3.5rem;
+        --checker-size: 2.4rem;
+        --point-width: 3.2rem;
         --point-height: 10rem;
     }
 
     .off-white,
     .off-black {
-        right: -150px;
+        right: -160px;
+        min-width: 140px;
+    }
+
+    .current-player-indicator {
+        left: -160px;
+        min-width: 140px;
     }
 }
 
-@media (max-width: 1024px) {
-    :root {
-        --checker-size: 2rem;
-        --point-width: 3rem;
-        --point-height: 8rem;
-    }
-
+@media (max-width: 1200px) {
     .game-board-container {
         padding: var(--spacing-md);
-    }
-
-    .game-board {
-        max-width: 100%;
-        border-width: 8px;
-    }
-
-    .off-section {
-        min-width: 100px;
-        padding: var(--spacing-md);
-    }
-
-    .off-white,
-    .off-black {
-        right: -120px;
-    }
-}
-
-@media (max-width: 768px) {
-    :root {
-        --checker-size: 1.7rem;
-        --point-width: 2.4rem;
-        --point-height: 6.5rem;
-        --board-padding: var(--spacing-sm);
-    }
-
-    .game-board-container {
-        padding: var(--spacing-xs);
-    }
-
-    .game-board {
-        border-width: 6px;
-    }
-
-    .board-half {
-        padding: var(--spacing-sm);
-    }
-
-    .board-middle {
-        padding: var(--spacing-sm) var(--spacing-md);
+        justify-content: flex-start;
     }
 
     .off-section {
         position: static;
-        margin-top: var(--spacing-md);
-        min-width: auto;
-        width: 100%;
         flex-direction: row;
-        justify-content: space-between;
+        width: 100%;
+        min-width: auto;
+        margin-top: var(--spacing-md);
         transform: none !important;
     }
 
     .off-white,
     .off-black {
-        top: auto;
         right: auto;
+        top: auto;
         bottom: auto;
     }
 
-    .off-checkers {
-        min-height: 40px;
-        width: auto;
-        flex: 1;
-        margin-left: 10px;
-    }
-}
-
-@media (max-width: 480px) {
-    :root {
-        --checker-size: 1.4rem;
-        --point-width: 2.1rem;
-        --point-height: 5.6rem;
-    }
-
-    .game-board-container {
-        padding: 4px;
-        gap: var(--spacing-md);
-    }
-
     .current-player-indicator {
-        flex-direction: row;
-        padding: 8px 16px;
-        font-size: 0.9rem;
+        position: static;
         width: 100%;
+        flex-direction: row;
         justify-content: center;
+        margin-top: var(--spacing-md);
+        transform: none;
     }
 }

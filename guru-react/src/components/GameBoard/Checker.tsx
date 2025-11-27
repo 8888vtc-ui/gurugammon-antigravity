@@ -13,12 +13,15 @@ const Checker: React.FC<CheckerProps> = ({ color, isSelected, onClick }) => {
 
   return (
     <motion.div
-      initial={{ scale: 0.5 }}
-      animate={{ scale: 1 }}
+      layout
+      initial={{ scale: 0.5, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0, opacity: 0 }}
       transition={{
         type: 'spring',
-        stiffness: 700,
-        damping: 30
+        stiffness: 500,
+        damping: 30,
+        mass: 1
       }}
       className={`checker ${checkerClass} ${isSelected ? 'checker-selected' : ''}`}
       onClick={onClick}

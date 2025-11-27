@@ -1,4 +1,3 @@
-import './MoveHistory.css';
 import type { MoveRecord } from '../../types';
 
 interface MoveHistoryProps {
@@ -7,23 +6,28 @@ interface MoveHistoryProps {
 
 export function MoveHistory({ moves }: MoveHistoryProps) {
   return (
-    <div className="move-history">
-      <div className="move-history-header">Historique des coups</div>
+    <div className="h-full">
       {moves.length === 0 ? (
-        <div className="move-history-empty">Aucun coup joué pour le moment.</div>
+        <div className="text-center text-muted text-sm italic py-4">
+          No moves played yet.
+        </div>
       ) : (
-        <ol className="move-history-list">
+        <div className="space-y-1">
           {moves.map((move, index) => (
-            <li
+            <div
               key={index}
-              className={`move-history-item move-${move.player}`}
+              className="flex items-center text-sm py-1 border-b border-white/5 last:border-0"
             >
-              <span className="move-index">{index + 1}.</span>
-              <span className="move-player">{move.player === 'white' ? 'Blanc' : 'Noir'}</span>
-              <span className="move-notation">{move.notation}</span>
-            </li>
+              <span className="w-8 text-muted font-mono text-xs">{index + 1}.</span>
+              <span className={`w-16 font-medium ${move.player === 'white' ? 'text-white' : 'text-gray-400'}`}>
+                {move.player === 'white' ? 'White' : 'Black'}
+              </span>
+              <span className="flex-1 font-mono text-gold text-right">
+                {move.notation}
+              </span>
+            </div>
           ))}
-        </ol>
+        </div>
       )}
     </div>
   );

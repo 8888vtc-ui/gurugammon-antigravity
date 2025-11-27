@@ -207,3 +207,140 @@ a:hover {
     background: var(--color-border-gold);
     color: var(--color-text-dark);
 }
+
+/* Glow Effects */
+.text-glow-purple {
+    color: #d8b4fe;
+    text-shadow: 0 0 10px rgba(216, 180, 254, 0.5);
+}
+
+.text-glow-gold {
+    color: var(--color-gold);
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.text-gold {
+    color: var(--color-gold);
+}
+
+/* Background Utilities */
+.bg-elevated {
+    background-color: var(--color-bg-elevated);
+}
+
+.bg-wood-medium {
+    background-color: var(--color-wood-medium);
+}
+
+.border-wood-border {
+    border-color: var(--color-wood-border);
+}
+
+/* Navigation */
+.nav-link {
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    color: var(--color-gold);
+}
+
+/* Layout Helpers */
+.min-h-\[80vh\] {
+    min-height: 80vh;
+}
+
+.min-h-\[60vh\] {
+    min-height: 60vh;
+}
+
+.max-w-2xl {
+    max-width: 42rem;
+}
+
+.max-w-md {
+    max-width: 28rem;
+}
+
+.w-full {
+    width: 100%;
+}
+
+.mb-8 {
+    margin-bottom: 2rem;
+}
+
+.mb-12 {
+    margin-bottom: 3rem;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem;
+}
+
+.mt-2 {
+    margin-top: 0.5rem;
+}
+
+.mt-6 {
+    margin-top: 1.5rem;
+}
+
+.mt-8 {
+    margin-top: 2rem;
+}
+
+.p-4 {
+    padding: 1rem;
+}
+
+.p-6 {
+    padding: 1.5rem;
+}
+
+.p-8 {
+    padding: 2rem;
+}
+
+.px-8 {
+    padding-left: 2rem;
+    padding-right: 2rem;
+}
+
+.py-4 {
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+.py-8 {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.text-4xl {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+}
+
+.text-xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+}
+
+.text-lg {
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+}
+
+.text-sm {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+}
+
+.grid {
+    display: grid;
+}

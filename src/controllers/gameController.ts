@@ -467,3 +467,57 @@ export const evaluatePosition = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+export const offerDouble = async (req: AuthRequest, res: Response) => {
+  const { gameId } = req.params;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+
+  if (!gameId) {
+    return res.status(400).json({ success: false, error: 'Game ID is required' });
+  }
+
+  try {
+    const updatedGame = await GameService.offerDouble(gameId, userId);
+    return res.json({ success: true, data: updatedGame });
+  } catch (error) {
+    console.error('Offer double error:', error);
+    return res.status(400).json({
+      success: false,
+      error: 'Failed to offer double',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+export const respondToDouble = async (req: AuthRequest, res: Response) => {
+  const { gameId } = req.params;
+  const userId = req.user?.id;
+  const { accept, beaver, raccoon } = req.body;
+
+  if (!userId) {
+    return res.status(401).json({ success: false, error: 'Unauthorized' });
+  }
+
+  if (!gameId) {
+    return res.status(400).json({ success: false, error: 'Game ID is required' });
+  }
+
+  if (typeof accept !== 'boolean') {
+    return res.status(400).json({ success: false, error: 'Accept (boolean) is required' });
+  }
+
+  try {
+    const updatedGame = await GameService.respondToDouble(gameId, userId, accept, Boolean(beaver), Boolean(raccoon));
+    return res.json({ success: true, data: updatedGame });
+  } catch (error) {
+    console.error('Respond to double error:', error);
+    return res.status(400).json({
+      success: false,
+      error: 'Failed to respond to double',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};

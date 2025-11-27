@@ -27,7 +27,11 @@ import {
   Prisma
 } from '@prisma/client';
 import {
-  CubeHistoryEntry
+  CubeHistoryEntry,
+  CubeContext,
+  CubeAction,
+  canDouble,
+  applyCubeAction
 } from './rules/cubeLogic';
 import {
   defaultCrawfordState,
@@ -644,7 +648,12 @@ export class GameService {
       crawford: game.crawford,
       matchLength: game.matchLength,
       whiteScore: game.whiteScore,
-      blackScore: game.blackScore
+      blackScore: game.blackScore,
+      gameType: game.gameType,
+      stake: game.stake,
+      createdAt: game.createdAt,
+      whitePlayerId: game.player1.id,
+      blackPlayerId: game.player2?.id ?? null
     };
   }
 
@@ -892,7 +901,12 @@ export class GameService {
       crawford: buildCrawfordState(game, null, DEFAULT_MATCH_RULES), // Simplified for list
       matchLength: game.matchLength,
       whiteScore: game.whiteScore,
-      blackScore: game.blackScore
+      blackScore: game.blackScore,
+      gameType: 'match',
+      stake: game.stake,
+      createdAt: game.createdAt,
+      whitePlayerId: game.whitePlayerId,
+      blackPlayerId: game.blackPlayerId
     }));
   }
 
@@ -940,7 +954,12 @@ export class GameService {
       crawford: buildCrawfordState(game, null, DEFAULT_MATCH_RULES),
       matchLength: game.matchLength,
       whiteScore: game.whiteScore,
-      blackScore: game.blackScore
+      blackScore: game.blackScore,
+      gameType: 'match',
+      stake: game.stake,
+      createdAt: game.createdAt,
+      whitePlayerId: game.whitePlayerId,
+      blackPlayerId: game.blackPlayerId
     }));
   }
 
@@ -983,6 +1002,186 @@ export class GameService {
     });
 
     emitGameEvent(gameId, 'resign', { userId, winner: winnerColor }, userId);
+
+    return this.getGame(gameId) as Promise<GameState>;
+  }
+
+  static async offerDouble(gameId: string, userId: string): Promise<GameState> {
+    const game = await prisma.games.findUnique({
+      where: { id: gameId },
+      include: { match: true }
+    });
+    if (!game) throw new AppError('Game not found', 404);
+
+    const isWhite = game.whitePlayerId === userId;
+    const playerColor: PlayerColor = isWhite ? 'white' : 'black';
+
+    if ((game.currentPlayer === 'WHITE' ? 'white' : 'black') !== playerColor) {
+      throw new AppError('Not your turn', 403);
+    }
+
+    const matchRecord = buildMatchRecord(game.match);
+    const rules = matchRecord?.rules ?? DEFAULT_MATCH_RULES;
+    const cubeSnapshot = buildCubeSnapshot(game);
+
+    const context: CubeContext = {
+      currentPlayer: playerColor,
+      cube: cubeSnapshot,
+      matchLength: game.matchLength,
+      whiteScore: game.whiteScore,
+      blackScore: game.blackScore,
+      rules,
+      doublePending: Boolean(game.doublePending),
+      doubleOfferedBy: game.doubleOfferedBy === 'white' || game.doubleOfferedBy === 'black' ? game.doubleOfferedBy : null,
+      match: matchRecord,
+      game: game
+    };
+
+    if (!canDouble(context)) {
+      throw new AppError('Cannot double at this time', 400);
+    }
+
+    const result = applyCubeAction(context, 'double');
+
+    await persistGameSnapshot(gameId, {
+      board: deserializeSnapshot(game.boardState).board,
+      dice: deserializeSnapshot(game.boardState).dice, // Should use game.dice column?
+      currentPlayer: game.currentPlayer === 'WHITE' ? 'white' : 'black',
+      status: game.status,
+      cube: {
+        level: result.cube.level,
+        owner: result.cube.owner,
+        doublePending: result.doublePending,
+        doubleOfferedBy: result.doubleOfferedBy,
+        history: [...cubeSnapshot.history, result.historyEntry]
+      },
+      crawford: buildCrawfordState(game, matchRecord, rules),
+      matchLength: game.matchLength
+    });
+
+    emitGameEvent(gameId, 'cube', {
+      action: 'double',
+      cube: {
+        level: result.cube.level,
+        owner: result.cube.owner,
+        isCentered: result.cube.isCentered,
+        doublePending: result.doublePending,
+        doubleOfferedBy: result.doubleOfferedBy,
+        history: [...cubeSnapshot.history, result.historyEntry]
+      }
+    }, userId);
+
+    return this.getGame(gameId) as Promise<GameState>;
+  }
+
+  static async respondToDouble(gameId: string, userId: string, accept: boolean, beaver: boolean = false, raccoon: boolean = false): Promise<GameState> {
+    const game = await prisma.games.findUnique({
+      where: { id: gameId },
+      include: { match: true }
+    });
+    if (!game) throw new AppError('Game not found', 404);
+
+    if (!game.doublePending) {
+      throw new AppError('No double pending', 400);
+    }
+
+    const isWhite = game.whitePlayerId === userId;
+    const playerColor: PlayerColor = isWhite ? 'white' : 'black';
+
+    // The player responding must be the one who didn't offer the double
+    const doubleOfferedBy = game.doubleOfferedBy === 'WHITE' ? 'white' : (game.doubleOfferedBy === 'BLACK' ? 'black' : null);
+    if (doubleOfferedBy === playerColor) {
+      throw new AppError('Cannot respond to your own double', 403);
+    }
+
+    const matchRecord = buildMatchRecord(game.match);
+    const rules = matchRecord?.rules ?? DEFAULT_MATCH_RULES;
+    const cubeSnapshot = buildCubeSnapshot(game);
+
+    const context: CubeContext = {
+      currentPlayer: playerColor,
+      cube: cubeSnapshot,
+      matchLength: game.matchLength,
+      whiteScore: game.whiteScore,
+      blackScore: game.blackScore,
+      rules,
+      doublePending: Boolean(game.doublePending),
+      doubleOfferedBy: doubleOfferedBy,
+      match: matchRecord,
+      game: game
+    };
+
+    let action: CubeAction = accept ? 'take' : 'pass';
+
+    if (accept) {
+      if (beaver) {
+        if (!rules.beaver) throw new AppError('Beaver rule is not enabled', 400);
+        action = 'beaver';
+      } else if (raccoon) {
+        if (!rules.raccoon) throw new AppError('Raccoon rule is not enabled', 400);
+        // Raccoon is only valid if we are responding to a Beaver.
+        // The cube logic 'handleImmediateRedouble' checks if the previous action was a beaver 
+        // by checking ownership or history, but here we just pass the intent.
+        // However, 'handleImmediateRedouble' for raccoon checks:
+        // "Raccoon only available immediately after a beaver" -> context.cube.owner !== doubleOfferedBy
+        // We rely on cubeLogic to validate the state.
+        action = 'raccoon';
+      }
+    }
+
+    const result = applyCubeAction(context, action);
+
+    let status: GameStatusType = game.status.toLowerCase() as GameStatusType;
+    let winner: PrismaPlayerColor | null = null;
+    let finishedAt: Date | null = null;
+
+    if (action === 'pass') {
+      // Game over
+      const winningColor = playerColor === 'white' ? 'black' : 'white';
+      winner = winningColor === 'white' ? 'WHITE' : 'BLACK';
+      status = 'completed';
+      finishedAt = new Date();
+    }
+
+    await persistGameSnapshot(gameId, {
+      board: deserializeSnapshot(game.boardState).board,
+      dice: deserializeSnapshot(game.boardState).dice,
+      currentPlayer: game.currentPlayer === 'WHITE' ? 'white' : 'black',
+      status: status,
+      cube: {
+        level: result.cube.level,
+        owner: result.cube.owner,
+        doublePending: result.doublePending,
+        doubleOfferedBy: result.doubleOfferedBy,
+        history: [...cubeSnapshot.history, result.historyEntry]
+      },
+      crawford: buildCrawfordState(game, matchRecord, rules),
+      matchLength: game.matchLength
+    });
+
+    if (winner) {
+      await prisma.games.update({
+        where: { id: gameId },
+        data: {
+          winner,
+          status: 'COMPLETED',
+          finishedAt
+        }
+      });
+    }
+
+    emitGameEvent(gameId, 'cube', {
+      action,
+      cube: {
+        level: result.cube.level,
+        owner: result.cube.owner,
+        isCentered: result.cube.isCentered,
+        doublePending: result.doublePending,
+        doubleOfferedBy: result.doubleOfferedBy,
+        history: [...cubeSnapshot.history, result.historyEntry]
+      },
+      winner: winner ? (winner === 'WHITE' ? 'white' : 'black') : undefined
+    }, userId);
 
     return this.getGame(gameId) as Promise<GameState>;
   }

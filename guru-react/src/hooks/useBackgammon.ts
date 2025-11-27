@@ -23,6 +23,12 @@ type BackendGameState = {
   board: BackendBoardState;
   currentPlayer: 'white' | 'black';
   dice: BackendDiceState;
+  cube?: {
+    level: number;
+    owner: 'white' | 'black' | null;
+    doublePending: boolean;
+    doubleOfferedBy: 'white' | 'black' | null;
+  };
 };
 
 type GameApiResponse =
@@ -50,7 +56,11 @@ const createLocalInitialState = (): GameState => ({
   winner: null,
   lastMove: null,
   hintMove: null,
-  moveHistory: []
+  moveHistory: [],
+  cubeLevel: 1,
+  cubeOwner: null,
+  doublePending: false,
+  doubleOfferedBy: null
 });
 
 const determineWinnerFromBoard = (board: BackendBoardState): 'white' | 'black' | null => {
@@ -85,7 +95,11 @@ const mapBackendGameToLocal = (backend: BackendGameState): GameState => {
     winner: determineWinnerFromBoard(board),
     lastMove: null,
     hintMove: null,
-    moveHistory: []
+    moveHistory: [],
+    cubeLevel: backend.cube?.level ?? 1,
+    cubeOwner: backend.cube?.owner ?? null,
+    doublePending: backend.cube?.doublePending ?? false,
+    doubleOfferedBy: backend.cube?.doubleOfferedBy ?? null
   };
 };
 
@@ -96,20 +110,31 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
   const [error, setError] = useState<string | null>(null);
 
   const handleSocketEvent = useCallback((message: SocketMessage) => {
-    if (message.type === 'GAME_MOVE') {
+    if (message.type === 'GAME_MOVE' || message.type === 'GAME_CUBE') {
       const payload = message.payload as any;
       const move = payload && payload.move ? payload.move : payload;
+      // Handle cube events which might be nested differently or have different structure
+      const gameData = payload.game ?? payload;
 
-      if (move && move.board && move.dice && move.currentPlayer) {
+      if (gameData && gameData.board && gameData.dice && gameData.currentPlayer) {
+        const backendGame: BackendGameState = {
+          board: gameData.board,
+          dice: gameData.dice,
+          currentPlayer: gameData.currentPlayer,
+          cube: gameData.cube
+        };
+        setGameState(mapBackendGameToLocal(backendGame));
+      } else if (move && move.board && move.dice && move.currentPlayer) {
+        // Fallback for move events
         const isRollEvent = move.eventType === 'roll';
         if (isRollEvent) {
-          // Roll-specific hook: useful for analytics or debugging
           console.debug('WS roll event', move);
         }
         const backendGame: BackendGameState = {
           board: move.board,
           dice: move.dice,
-          currentPlayer: move.currentPlayer
+          currentPlayer: move.currentPlayer,
+          cube: move.cube // Assuming cube state is passed in move events too
         };
         setGameState(mapBackendGameToLocal(backendGame));
       }
@@ -203,6 +228,32 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
     },
     [gameId]
   );
+
+  const offerDouble = useCallback(async () => {
+    if (!gameId) return;
+    try {
+      setError(null);
+      const response = await apiClient.offerDouble<GameApiResponse>(gameId);
+      const backendGame = extractBackendGame(response);
+      setGameState(mapBackendGameToLocal(backendGame));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to offer double.';
+      setError(message);
+    }
+  }, [gameId]);
+
+  const respondToDouble = useCallback(async (accept: boolean, beaver: boolean = false, raccoon: boolean = false) => {
+    if (!gameId) return;
+    try {
+      setError(null);
+      const response = await apiClient.respondToDouble<GameApiResponse>(gameId, accept, beaver, raccoon);
+      const backendGame = extractBackendGame(response);
+      setGameState(mapBackendGameToLocal(backendGame));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to respond to double.';
+      setError(message);
+    }
+  }, [gameId]);
 
   const requestHint = useCallback(async () => {
     if (!gameId) {
@@ -320,8 +371,8 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
               const newPoints = [...board.points];
               let newWhiteBar = board.whiteBar;
               let newBlackBar = board.blackBar;
-              let newWhiteOff = board.whiteOff;
-              let newBlackOff = board.blackOff;
+              const newWhiteOff = board.whiteOff;
+              const newBlackOff = board.blackOff;
 
               // Enlever de la barre
               if (currentPlayer === 'white') newWhiteBar--;
@@ -460,6 +511,8 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
     rollDice,
     handlePointClick,
     requestHint,
+    offerDouble,
+    respondToDouble,
     error,
     connectionStatus,
     reconnect

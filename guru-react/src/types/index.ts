@@ -25,6 +25,10 @@ export interface GameState {
   lastMove?: { from: number; to: number } | null;
   hintMove?: { from: number; to: number } | null;
   moveHistory: MoveRecord[];
+  cubeLevel?: number;
+  cubeOwner?: PlayerColor | null;
+  doublePending?: boolean;
+  doubleOfferedBy?: PlayerColor | null;
 }
 
 export const INITIAL_BOARD: number[] = [

@@ -27,3 +27,13 @@ export interface GameState {
     color: PlayerColor;
   };
 }
+
+export interface GameSession {
+  id: string;
+  status: 'WAITING' | 'IN_PROGRESS' | 'COMPLETED' | 'ABANDONED';
+  whitePlayerId?: string;
+  blackPlayerId?: string;
+  gameType: string;
+  stake: number;
+  createdAt: string;
+}

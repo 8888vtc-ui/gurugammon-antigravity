@@ -119,6 +119,11 @@ export interface GameSummary {
   matchLength: number | null;
   whiteScore: number;
   blackScore: number;
+  gameType: GameType;
+  stake: number;
+  createdAt: Date;
+  whitePlayerId?: string;
+  blackPlayerId?: string | null;
 }
 
 // Types pour les requêtes API
