@@ -36,11 +36,23 @@ export function RegisterForm({ onRegistered }: RegisterFormProps) {
 
     setSubmitting(true);
     try {
-      const response = await apiClient.register<{ token?: string }>(form);
+      // Le backend attend { name, email, password }
+      const payloadForApi = {
+        name: form.username && form.username.trim().length > 0 ? form.username : form.email,
+        email: form.email,
+        password: form.password
+      };
 
-      if (response && typeof response.token === 'string') {
+      const response = await apiClient.register<{ success?: boolean; data?: { token?: string; accessToken?: string } }>(
+        payloadForApi as any
+      );
+
+      const anyResp = response as any;
+      const token = anyResp?.data?.token ?? anyResp?.data?.accessToken ?? anyResp?.token;
+
+      if (token && typeof token === 'string') {
         if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-          localStorage.setItem('authToken', response.token);
+          localStorage.setItem('authToken', token);
         }
       }
 

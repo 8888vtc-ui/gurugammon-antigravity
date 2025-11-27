@@ -36,13 +36,16 @@ export function LoginForm({ onAuthenticated }: LoginFormProps) {
 
     setSubmitting(true);
     try {
-      const response = await apiClient.login<{ token: string }>(form);
-      if (!response || typeof response.token !== 'string') {
+      const response = await apiClient.login<{ success?: boolean; data?: { token?: string; accessToken?: string } }>(form);
+      const anyResp = response as any;
+      const token = anyResp?.data?.token ?? anyResp?.data?.accessToken ?? anyResp?.token;
+
+      if (!token || typeof token !== 'string') {
         throw new Error('Réponse de connexion invalide (token manquant).');
       }
 
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-        localStorage.setItem('authToken', response.token);
+        localStorage.setItem('authToken', token);
       }
 
       if (onAuthenticated) {

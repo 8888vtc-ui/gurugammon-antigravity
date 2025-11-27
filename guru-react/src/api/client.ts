@@ -1,6 +1,6 @@
 export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  'https://gurugammon.onrender.com';
+  'http://localhost:3000';
 
 function getAuthToken(): string | null {
   if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
@@ -82,6 +82,7 @@ export type RegisterPayload = {
   email: string;
   password: string;
   username?: string;
+  name?: string;
 };
 
 export type CreateGamePayload = {

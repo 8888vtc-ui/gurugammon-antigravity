@@ -9,8 +9,7 @@ interface CheckerProps {
 }
 
 const Checker: React.FC<CheckerProps> = ({ color, isSelected, onClick }) => {
-  const bgColor = color === 'white' ? 'bg-white' : 'bg-red-800';
-  const border = isSelected ? 'border-4 border-blue-500' : 'border-2 border-gray-800';
+  const checkerClass = color === 'white' ? 'checker-white' : 'checker-black';
 
   return (
     <motion.div
@@ -21,8 +20,12 @@ const Checker: React.FC<CheckerProps> = ({ color, isSelected, onClick }) => {
         stiffness: 700,
         damping: 30
       }}
-      className={`w-8 h-8 rounded-full ${bgColor} ${border} cursor-pointer`}
+      className={`checker ${checkerClass} ${isSelected ? 'checker-selected' : ''}`}
       onClick={onClick}
+      style={{
+        border: isSelected ? '2px solid #ffd700' : undefined,
+        boxShadow: isSelected ? '0 0 15px rgba(255, 215, 0, 0.6)' : undefined
+      }}
     />
   );
 };
