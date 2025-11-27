@@ -1,4 +1,5 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+// FIXED: Removed unused 'React' import - React 17+ automatic JSX runtime doesn't require it
+import { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
     children: ReactNode;
