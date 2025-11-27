@@ -907,7 +907,7 @@ export class GameService {
       data: {
         blackPlayerId: userId,
         status: 'PLAYING',
-        startedAt: new Date()
+
       },
       include: {
         whitePlayer: true,
@@ -997,3 +997,5 @@ export class GameService {
     emitGameEvent(gameId, 'draw', { userId }, userId);
     return true;
   }
+}
+
