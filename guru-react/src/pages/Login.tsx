@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { motion } from 'framer-motion';
-import { LogIn, UserPlus } from 'lucide-react';
+import { LogIn, UserPlus, User } from 'lucide-react';
 
 export const Login: React.FC = () => {
     const [isRegister, setIsRegister] = useState(false);
@@ -27,6 +27,28 @@ export const Login: React.FC = () => {
             navigate('/lobby');
         } catch (err: any) {
             setError(err.response?.data?.error || 'An error occurred');
+        }
+    };
+
+    const handleGuestLogin = async () => {
+        try {
+            const guestId = Math.floor(Math.random() * 100000);
+            const payload = {
+                username: `Guest_${guestId}`,
+                email: `guest${guestId}@guru.com`,
+                password: `guest${guestId}pass`
+            };
+
+            // Register the guest user
+            const { data } = await api.post('/auth/register', payload);
+
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user));
+
+            navigate('/lobby');
+        } catch (err) {
+            console.error('Guest login failed', err);
+            setError('Guest login failed. Please try again.');
         }
     };
 
@@ -91,6 +113,20 @@ export const Login: React.FC = () => {
                         {isRegister ? 'Sign Up' : 'Sign In'}
                     </button>
                 </form>
+
+                <div className="my-6 flex items-center">
+                    <div className="flex-1 border-t border-gray-700"></div>
+                    <span className="px-4 text-gray-500 text-sm">OR</span>
+                    <div className="flex-1 border-t border-gray-700"></div>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={handleGuestLogin}
+                    className="w-full bg-[#2d2d2d] text-white font-bold py-3 rounded-lg hover:bg-[#3d3d3d] transition-colors flex items-center justify-center border border-gray-700"
+                >
+                    <User className="mr-2 w-5 h-5" /> Play as Guest
+                </button>
 
                 <div className="mt-6 text-center text-sm text-gray-500">
                     {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
