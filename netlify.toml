@@ -1,6 +1,6 @@
 [build]
   publish = "guru-react/dist"
-  command = "cd guru-react && npm install && npm run build"
+  command = "cd guru-react && npm install --include=dev && npm run build"
 
 # Global CDN optimization
 [[edge_functions]]
