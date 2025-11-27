@@ -508,7 +508,7 @@ model invite_codes {
   id        String   @id @default(uuid())
   code      String   @unique
   createdBy String   @map("created_by")
-  usedBy    String?  @map("used_by")
+  usedBy    String?  @unique @map("used_by")
   role      UserRole @default(USER)
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
