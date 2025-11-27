@@ -5,17 +5,14 @@ exports.Helper = void 0;
 class Helper {
     // Générer un ID unique
     static generateId() {
-        // TODO : utilise crypto.randomUUID()
         return crypto.randomUUID();
     }
     // Formater une date
     static formatDate(date) {
-        // TODO : formate la date en YYYY-MM-DD
-        return date.toISOString().split('T')[0] || '';
+        return date.toISOString().split('T')[0] ?? '';
     }
     // Calculer le temps écoulé
     static timeAgo(date) {
-        // TODO : calcule le temps depuis la date
         const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
         if (seconds < 60)
             return `${seconds} seconds ago`;
@@ -27,8 +24,7 @@ class Helper {
     }
     // Arrondir un nombre
     static round(num, decimals = 2) {
-        // TODO : arrondit le nombre avec décimales
-        return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
+        return Number(Math.round(Number(num + 'e' + decimals)) + 'e-' + decimals);
     }
 }
 exports.Helper = Helper;

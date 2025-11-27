@@ -26,7 +26,7 @@ export declare class GNUBGRunner {
         gammonProbability: number;
         backgammonProbability: number;
     };
-    static analyzeGame(moves: Move[]): Promise<{
+    static analyzeGame(_moves: Move[]): Promise<{
         totalError: number;
         errorRate: number;
         criticalMoves: number;

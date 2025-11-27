@@ -1,1 +1,2 @@
-declare module '../services/matchmakingService';
+import './server';
+//# sourceMappingURL=index.d.ts.map

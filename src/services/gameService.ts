@@ -43,6 +43,7 @@ import {
 import { emitGameEvent } from './gameEventEmitter';
 import { AppError } from '../utils/errors';
 import { Logger } from '../utils/logger';
+import { activeGames, moveTimeHistogram } from '../metrics/registry';
 
 const logger = new Logger('GameService');
 
@@ -543,6 +544,8 @@ export class GameService {
 
     emitGameEvent(newGame.id, 'join', { gameId: newGame.id, userId }, userId);
 
+    activeGames.inc();
+
     return {
       id: newGame.id,
       player1: fullPlayer1,
@@ -695,6 +698,7 @@ export class GameService {
   }
 
   static async makeMove(gameId: string, userId: string, moveRequest: MakeMoveRequest): Promise<GameState> {
+    const endTimer = moveTimeHistogram.startTimer();
     let game = await this.getGame(gameId);
     if (!game) throw new AppError('Game not found', 404);
 
@@ -785,7 +789,10 @@ export class GameService {
           finishedAt
         }
       });
+      activeGames.dec();
     }
+
+    endTimer();
 
     const updatedGame = await this.getGame(gameId);
     if (!updatedGame) throw new AppError('Game lost after update', 500);
@@ -1001,6 +1008,8 @@ export class GameService {
       }
     });
 
+    activeGames.dec();
+
     emitGameEvent(gameId, 'resign', { userId, winner: winnerColor }, userId);
 
     return this.getGame(gameId) as Promise<GameState>;
@@ -1089,7 +1098,8 @@ export class GameService {
     const playerColor: PlayerColor = isWhite ? 'white' : 'black';
 
     // The player responding must be the one who didn't offer the double
-    const doubleOfferedBy = game.doubleOfferedBy === 'WHITE' ? 'white' : (game.doubleOfferedBy === 'BLACK' ? 'black' : null);
+    // The player responding must be the one who didn't offer the double
+    const doubleOfferedBy = playerEnumToColor(game.doubleOfferedBy as PrismaPlayerColor);
     if (doubleOfferedBy === playerColor) {
       throw new AppError('Cannot respond to your own double', 403);
     }
@@ -1168,6 +1178,7 @@ export class GameService {
           finishedAt
         }
       });
+      activeGames.dec();
     }
 
     emitGameEvent(gameId, 'cube', {

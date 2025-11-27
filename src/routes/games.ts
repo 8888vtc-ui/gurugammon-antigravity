@@ -21,6 +21,8 @@ import {
   getMatchmakingStatus
 } from '../controllers/matchmakingController';
 
+import { CoachController } from '../controllers/coachController';
+
 const router = express.Router();
 
 router.use(authMiddleware);
@@ -37,6 +39,7 @@ router.post('/:gameId/resign', resignGame);
 router.post('/:gameId/draw', offerDraw);
 router.post('/:gameId/suggestions', getSuggestions);
 router.post('/:gameId/evaluate', evaluatePosition);
+router.post('/:gameId/coach', CoachController.getCoachAdvice);
 router.post('/matchmaking/join', joinMatchmakingQueue);
 router.post('/matchmaking/leave', leaveMatchmakingQueue);
 router.get('/matchmaking/status', getMatchmakingStatus);

@@ -8,6 +8,6 @@ declare const corsOptions: {
 };
 declare const generalLimiter: import("express-rate-limit").RateLimitRequestHandler;
 declare const authLimiter: import("express-rate-limit").RateLimitRequestHandler;
-export declare const validateInput: (requiredFields: string[]) => (req: Request, res: Response, next: NextFunction) => Response | void;
+export declare const validateInput: (requiredFields: string[]) => (req: Request, res: Response, next: NextFunction) => Response<any, Record<string, any>> | undefined;
 export { helmet, cors, corsOptions, generalLimiter, authLimiter };
 //# sourceMappingURL=securityMiddleware.d.ts.map

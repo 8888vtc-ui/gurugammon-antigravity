@@ -81,10 +81,44 @@ export class GNUBGProvider implements AIProvider {
     this.logger = options.logger ?? new Logger('GNUBGProvider');
   }
 
+  private readonly cache = new Map<string, { value: any; timestamp: number }>();
+  private readonly CACHE_SIZE = 10000;
+  private readonly CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+  private getCacheKey(path: string, payload: any): string {
+    return `${path}:${JSON.stringify(payload)}`;
+  }
+
+  private getFromCache<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.timestamp > this.CACHE_TTL) {
+      this.cache.delete(key);
+      return null;
+    }
+    // Move to end (LRU)
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    return entry.value as T;
+  }
+
+  private setCache(key: string, value: any) {
+    if (this.cache.size >= this.CACHE_SIZE) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey) this.cache.delete(firstKey);
+    }
+    this.cache.set(key, { value, timestamp: Date.now() });
+  }
+
   async getBestMove(input: AnalyzeInput): Promise<SuggestedMove> {
-    return this.executeRequest<AnalyzeResponse, SuggestedMove>({
+    const payload = this.buildAnalyzePayload(input);
+    const cacheKey = this.getCacheKey('/analyze', payload);
+    const cached = this.getFromCache<SuggestedMove>(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.executeRequest<AnalyzeResponse, SuggestedMove>({
       path: '/analyze',
-      payload: this.buildAnalyzePayload(input),
+      payload,
       schema: analyzeResponseSchema,
       map: (raw) => ({
         move: raw.bestMove,
@@ -92,12 +126,20 @@ export class GNUBGProvider implements AIProvider {
         explanation: raw.explanation ?? 'GNUBG did not provide an explanation.'
       })
     });
+
+    this.setCache(cacheKey, result);
+    return result;
   }
 
   async evaluatePosition(input: AnalyzeInput): Promise<EvaluationResult> {
-    return this.executeRequest<EvaluateResponse, EvaluationResult>({
+    const payload = this.buildAnalyzePayload(input);
+    const cacheKey = this.getCacheKey('/evaluate', payload);
+    const cached = this.getFromCache<EvaluationResult>(cacheKey);
+    if (cached) return cached;
+
+    const result = await this.executeRequest<EvaluateResponse, EvaluationResult>({
       path: '/evaluate',
-      payload: this.buildAnalyzePayload(input),
+      payload,
       schema: evaluateResponseSchema,
       map: (raw) => ({
         equity: raw.equity,
@@ -106,6 +148,9 @@ export class GNUBGProvider implements AIProvider {
         explanation: raw.explanation ?? 'GNUBG did not provide an explanation.'
       })
     });
+
+    this.setCache(cacheKey, result);
+    return result;
   }
 
   async analyzeGame(moves: Move[]): Promise<AnalyzeGameResponse> {

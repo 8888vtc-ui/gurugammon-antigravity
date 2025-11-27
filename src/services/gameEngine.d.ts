@@ -16,5 +16,13 @@ export declare class BackgammonEngine {
         white: number;
         black: number;
     };
+    private static getHomeRange;
+    private static entryPointFromBar;
+    private static belongsToPlayer;
+    private static hasPiecesBehindInHome;
+    private static playerHasPiecesOnBar;
+    private static getPlayableDice;
+    private static hasLegalMoveForDie;
+    private static canBearOffFrom;
 }
 //# sourceMappingURL=gameEngine.d.ts.map

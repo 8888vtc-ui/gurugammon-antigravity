@@ -7,6 +7,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const userController_1 = require("../controllers/userController");
+const userDashboardController_1 = require("../controllers/userDashboardController");
 const router = express_1.default.Router();
 // Toutes les routes utilisateur nécessitent une authentification
 router.use(authMiddleware_1.authMiddleware);
@@ -14,5 +15,7 @@ router.use(authMiddleware_1.authMiddleware);
 router.get('/profile', userController_1.getProfile);
 // PUT /api/user/profile - Mettre à jour son profil
 router.put('/profile', userController_1.updateProfile);
+// GET /api/user/dashboard - Tableau de bord complet
+router.get('/dashboard', userDashboardController_1.getDashboard);
 exports.default = router;
 //# sourceMappingURL=user.js.map

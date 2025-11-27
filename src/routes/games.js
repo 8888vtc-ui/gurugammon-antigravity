@@ -7,26 +7,25 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const gameController_1 = require("../controllers/gameController");
+const matchmakingController_1 = require("../controllers/matchmakingController");
+const coachController_1 = require("../controllers/coachController");
 const router = express_1.default.Router();
-// Toutes les routes de jeu nécessitent une authentification
 router.use(authMiddleware_1.authMiddleware);
-// POST /api/games - Créer une nouvelle partie
+router.get('/available', gameController_1.listAvailableGames); // Must be before /:gameId routes
 router.post('/', gameController_1.createGameController);
-// GET /api/games/available - Lister les parties disponibles
-router.get('/available', gameController_1.listAvailableGames);
-// POST /api/games/join - Rejoindre une partie
-router.post('/join', gameController_1.joinGame);
-// GET /api/games/my-games - Lister les parties de l'utilisateur
-router.get('/my-games', gameController_1.listUserGames);
-// GET /api/games/:gameId - Obtenir les détails d'une partie
-router.get('/:gameId', gameController_1.getGameDetails);
-// POST /api/games/:gameId/move - Faire un mouvement
-router.post('/:gameId/move', gameController_1.makeMove);
-// POST /api/games/:gameId/roll - Lancer les dés
+router.post('/:gameId/join', gameController_1.joinGame);
 router.post('/:gameId/roll', gameController_1.rollDice);
-// GET /api/games/:gameId/available-moves - Obtenir les mouvements possibles
-router.get('/:gameId/available-moves', gameController_1.getAvailableMoves);
-// GET /api/games/:gameId/pip-count - Obtenir le pip count
-router.get('/:gameId/pip-count', gameController_1.getPipCount);
+router.post('/:gameId/move', gameController_1.makeMove);
+router.post('/:gameId/double', gameController_1.offerDouble);
+router.post('/:gameId/double/respond', gameController_1.respondToDouble);
+router.post('/:gameId/resign', gameController_1.resignGame);
+router.post('/:gameId/draw', gameController_1.offerDraw);
+router.post('/:gameId/suggestions', gameController_1.getSuggestions);
+router.post('/:gameId/evaluate', gameController_1.evaluatePosition);
+router.post('/:gameId/coach', coachController_1.getCoachAdvice);
+router.post('/matchmaking/join', matchmakingController_1.joinMatchmakingQueue);
+router.post('/matchmaking/leave', matchmakingController_1.leaveMatchmakingQueue);
+router.get('/matchmaking/status', matchmakingController_1.getMatchmakingStatus);
+router.get('/:gameId/status', gameController_1.getGameStatus);
 exports.default = router;
 //# sourceMappingURL=games.js.map

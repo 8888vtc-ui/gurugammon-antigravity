@@ -1,443 +1,468 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPipCount = exports.getAvailableMoves = exports.rollDice = exports.makeMove = exports.listUserGames = exports.getGameDetails = exports.joinGame = exports.listAvailableGames = exports.createGameController = void 0;
+exports.respondToDouble = exports.offerDouble = exports.evaluatePosition = exports.getSuggestions = exports.offerDraw = exports.resignGame = exports.getPipCount = exports.getAvailableMoves = exports.listUserGames = exports.joinGame = exports.listAvailableGames = exports.getGameStatus = exports.makeMove = exports.rollDice = exports.getGameDetails = exports.createGameController = void 0;
 const client_1 = require("@prisma/client");
+const zod_1 = require("zod");
 const gameService_1 = require("../services/gameService");
-const prisma = new client_1.PrismaClient();
-// Convertir Prisma Game vers Game interface
-function prismaGameToGame(prismaGame, player1, player2 = null) {
+const aiService_1 = require("../services/aiService");
+const auth_1 = require("../utils/auth");
+const ALLOWED_GAME_MODES = [
+    client_1.GameMode.AI_VS_PLAYER,
+    client_1.GameMode.PLAYER_VS_PLAYER,
+    client_1.GameMode.TOURNAMENT
+];
+const createGameSchema = zod_1.z.object({
+    game_mode: zod_1.z.string().optional(),
+    stake: zod_1.z.union([zod_1.z.number(), zod_1.z.string()]).optional(),
+    opponentId: zod_1.z.string().optional()
+});
+const makeMoveSchema = zod_1.z.object({
+    from: zod_1.z.number(),
+    to: zod_1.z.number(),
+    diceUsed: zod_1.z.number()
+});
+const aiAnalysisBodySchema = zod_1.z.object({
+    boardState: zod_1.z.unknown().optional(),
+    dice: zod_1.z.unknown().optional()
+});
+const parseCreateGameInput = (userId, body) => {
+    const result = createGameSchema.safeParse(body ?? {});
+    if (!result.success) {
+        return null;
+    }
+    const { game_mode, stake, opponentId } = result.data;
+    const rawMode = typeof game_mode === 'string' ? game_mode.toUpperCase() : 'AI_VS_PLAYER';
+    const mode = ALLOWED_GAME_MODES.includes(rawMode) ? rawMode : null;
+    if (!mode) {
+        return null;
+    }
+    const numericStake = Number(stake ?? 0);
+    if (!Number.isFinite(numericStake) || numericStake < 0) {
+        return null;
+    }
     return {
-        id: prismaGame.id,
-        player1,
-        player2,
-        status: prismaGame.status,
-        gameType: prismaGame.gameType,
-        stake: prismaGame.stake,
-        winner: prismaGame.winnerId === player1.id ? player1 : player2,
-        createdAt: prismaGame.createdAt,
-        startedAt: prismaGame.startedAt,
-        finishedAt: prismaGame.finishedAt
+        userId,
+        mode,
+        stake: Math.trunc(numericStake),
+        opponentId: typeof opponentId === 'string' ? opponentId : null
     };
-}
-// Créer une nouvelle partie
+};
 const createGameController = async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    const createInput = parseCreateGameInput(userId, req.body);
+    if (!createInput) {
+        return res.status(400).json({ success: false, error: 'Invalid game creation payload' });
+    }
     try {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                error: 'User not authenticated'
-            });
-        }
-        const { gameType, stake } = req.body;
-        // Validation
-        if (!gameType || !stake) {
-            return res.status(400).json({
-                success: false,
-                error: 'Game type and stake are required'
-            });
-        }
-        if (!['match', 'money_game', 'tournament'].includes(gameType)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid game type'
-            });
-        }
-        if (stake < 0 || stake > 10000) {
-            return res.status(400).json({
-                success: false,
-                error: 'Stake must be between 0 and 10000'
-            });
-        }
-        // Récupérer le joueur
-        const player = await prisma.player.findUnique({
-            where: { id: req.user.id }
-        });
-        if (!player) {
-            return res.status(404).json({
-                success: false,
-                error: 'Player not found'
-            });
-        }
-        // Créer la partie en base
-        const prismaGame = await prisma.game.create({
-            data: {
-                player1Id: player.id,
-                gameType,
-                stake,
-                status: 'waiting'
-            }
-        });
-        // Créer l'objet Game complet
-        const game = prismaGameToGame(prismaGame, player);
-        res.status(201).json({
+        const createdGame = await gameService_1.GameService.createGame(createInput);
+        return res.status(201).json({
             success: true,
-            data: game
+            message: 'Game created successfully',
+            data: createdGame
         });
     }
     catch (error) {
         console.error('Create game error:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
-            error: 'Failed to create game'
+            error: 'Failed to create game',
+            message: error instanceof Error ? error.message : 'Unknown error'
         });
     }
 };
 exports.createGameController = createGameController;
-// Lister les parties disponibles
-const listAvailableGames = async (req, res) => {
-    try {
-        const availableGames = await prisma.game.findMany({
-            where: {
-                status: 'waiting',
-                player2Id: null
-            },
-            include: {
-                player1: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        points: true
-                    }
-                }
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        });
-        const games = availableGames.map(prismaGame => prismaGameToGame(prismaGame, prismaGame.player1));
-        res.json({
-            success: true,
-            data: games
-        });
-    }
-    catch (error) {
-        console.error('List games error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to list games'
-        });
-    }
-};
-exports.listAvailableGames = listAvailableGames;
-// Rejoindre une partie
-const joinGame = async (req, res) => {
-    try {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                error: 'User not authenticated'
-            });
-        }
-        const { gameId } = req.body;
-        if (!gameId) {
-            return res.status(400).json({
-                success: false,
-                error: 'Game ID is required'
-            });
-        }
-        // Vérifier que la partie existe et est disponible
-        const game = await prisma.game.findUnique({
-            where: { id: parseInt(gameId) },
-            include: {
-                player1: true,
-                player2: true
-            }
-        });
-        if (!game) {
-            return res.status(404).json({
-                success: false,
-                error: 'Game not found'
-            });
-        }
-        if (game.status !== 'waiting' || game.player2Id !== null) {
-            return res.status(400).json({
-                success: false,
-                error: 'Game is not available'
-            });
-        }
-        if (game.player1Id === req.user.id) {
-            return res.status(400).json({
-                success: false,
-                error: 'Cannot join your own game'
-            });
-        }
-        // Vérifier que le joueur a assez de points
-        const player = await prisma.player.findUnique({
-            where: { id: req.user.id }
-        });
-        if (!player || player.points < game.stake) {
-            return res.status(400).json({
-                success: false,
-                error: 'Insufficient points to join this game'
-            });
-        }
-        // Démarrer la partie avec le service
-        const gameState = await gameService_1.GameService.startGame(parseInt(gameId), req.user.id);
-        res.json({
-            success: true,
-            data: gameState
-        });
-    }
-    catch (error) {
-        console.error('Join game error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to join game'
-        });
-    }
-};
-exports.joinGame = joinGame;
-// Obtenir les détails d'une partie
 const getGameDetails = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
     try {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                error: 'User not authenticated'
-            });
+        const game = await gameService_1.GameService.getGame(gameId);
+        if (!game) {
+            return res.status(404).json({ success: false, error: 'Game not found' });
         }
-        const gameIdParam = req.params.gameId;
-        if (!gameIdParam) {
-            return res.status(400).json({
-                success: false,
-                error: 'Game ID is required'
-            });
+        if (!(0, auth_1.ensurePlayerInGame)(req, game)) {
+            return res.status(403).json({ success: false, error: 'Unauthorized', message: 'You are not a player in this game.' });
         }
-        const gameId = parseInt(gameIdParam);
-        if (isNaN(gameId)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid game ID'
-            });
-        }
-        const gameState = await gameService_1.GameService.loadGameState(gameId);
-        if (!gameState) {
-            return res.status(404).json({
-                success: false,
-                error: 'Game not found'
-            });
-        }
-        // Vérifier que l'utilisateur est un des joueurs
-        const player1Id = parseInt(gameState.player1.id);
-        const player2Id = gameState.player2 ? parseInt(gameState.player2.id) : null;
-        if (player1Id !== req.user.id && (!player2Id || player2Id !== req.user.id)) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied: You are not a player in this game'
-            });
-        }
-        res.json({
-            success: true,
-            data: gameState
-        });
+        return res.json({ success: true, data: game });
     }
     catch (error) {
-        console.error('Get game details error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to get game details'
-        });
+        console.error('Get game error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to get game details' });
     }
 };
 exports.getGameDetails = getGameDetails;
-// Lister les parties de l'utilisateur
-const listUserGames = async (req, res) => {
-    try {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                error: 'User not authenticated'
-            });
-        }
-        const userGames = await prisma.game.findMany({
-            where: {
-                OR: [
-                    { player1Id: req.user.id },
-                    { player2Id: req.user.id }
-                ]
-            },
-            include: {
-                player1: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        points: true
-                    }
-                },
-                player2: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        points: true
-                    }
-                }
-            },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        });
-        const games = userGames.map(prismaGame => prismaGameToGame(prismaGame, prismaGame.player1, prismaGame.player2));
-        res.json({
-            success: true,
-            data: games
-        });
-    }
-    catch (error) {
-        console.error('List user games error:', error);
-        res.status(500).json({
-            success: false,
-            error: 'Failed to list user games'
-        });
-    }
-};
-exports.listUserGames = listUserGames;
-// Faire un mouvement dans une partie
-const makeMove = async (req, res) => {
-    try {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                error: 'User not authenticated'
-            });
-        }
-        const gameIdParam = req.params.gameId;
-        if (!gameIdParam) {
-            return res.status(400).json({
-                success: false,
-                error: 'Game ID is required'
-            });
-        }
-        const gameId = parseInt(gameIdParam);
-        const { from, to, diceUsed } = req.body;
-        // Validation
-        if (typeof from !== 'number' || typeof to !== 'number' || typeof diceUsed !== 'number') {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid move parameters'
-            });
-        }
-        if (diceUsed < 1 || diceUsed > 6) {
-            return res.status(400).json({
-                success: false,
-                error: 'Dice value must be between 1 and 6'
-            });
-        }
-        // Faire le mouvement via le service
-        const updatedGameState = await gameService_1.GameService.makeMove(gameId, req.user.id, { from, to, diceUsed });
-        res.json({
-            success: true,
-            data: updatedGameState
-        });
-    }
-    catch (error) {
-        console.error('Make move error:', error);
-        res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to make move'
-        });
-    }
-};
-exports.makeMove = makeMove;
-// Lancer les dés
 const rollDice = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
     try {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                error: 'User not authenticated'
-            });
-        }
-        const gameIdParam = req.params.gameId;
-        if (!gameIdParam) {
-            return res.status(400).json({
-                success: false,
-                error: 'Game ID is required'
-            });
-        }
-        const gameId = parseInt(gameIdParam);
-        // Lancer les dés via le service
-        const diceState = await gameService_1.GameService.rollDice(gameId, req.user.id);
-        res.json({
-            success: true,
-            data: diceState
-        });
+        const updatedGame = await gameService_1.GameService.rollDice(gameId, userId);
+        return res.json({ success: true, data: updatedGame });
     }
     catch (error) {
         console.error('Roll dice error:', error);
-        res.status(500).json({
+        return res.status(400).json({
             success: false,
-            error: error instanceof Error ? error.message : 'Failed to roll dice'
+            error: 'Failed to roll dice',
+            message: error instanceof Error ? error.message : 'Unknown error'
         });
     }
 };
 exports.rollDice = rollDice;
-// Obtenir les mouvements possibles
-const getAvailableMoves = async (req, res) => {
+const makeMove = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    const parseResult = makeMoveSchema.safeParse(req.body);
+    if (!parseResult.success) {
+        return res.status(400).json({ success: false, error: 'Invalid move request' });
+    }
+    const moveRequest = parseResult.data;
     try {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                error: 'User not authenticated'
-            });
-        }
-        const gameIdParam = req.params.gameId;
-        if (!gameIdParam) {
-            return res.status(400).json({
-                success: false,
-                error: 'Game ID is required'
-            });
-        }
-        const gameId = parseInt(gameIdParam);
-        // Obtenir les mouvements possibles via le service
-        const availableMoves = await gameService_1.GameService.getAvailableMoves(gameId, req.user.id);
-        res.json({
-            success: true,
-            data: availableMoves
+        const updatedGame = await gameService_1.GameService.makeMove(gameId, userId, moveRequest);
+        return res.json({ success: true, data: updatedGame });
+    }
+    catch (error) {
+        console.error('Make move error:', error);
+        return res.status(400).json({
+            success: false,
+            error: 'Failed to make move',
+            message: error instanceof Error ? error.message : 'Unknown error'
         });
+    }
+};
+exports.makeMove = makeMove;
+const getGameStatus = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
+    try {
+        const summary = await gameService_1.GameService.getGameSummary(gameId);
+        if (!summary) {
+            return res.status(404).json({ success: false, error: 'Game not found' });
+        }
+        // We might want to check auth here too, but summary might be public?
+        // The previous code checked ensurePlayerInGame.
+        const game = await gameService_1.GameService.getGame(gameId);
+        if (game && !(0, auth_1.ensurePlayerInGame)(req, game)) {
+            return res.status(403).json({ success: false, error: 'Unauthorized' });
+        }
+        return res.json({ success: true, data: summary });
+    }
+    catch (error) {
+        console.error('Get status error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to get game status' });
+    }
+};
+exports.getGameStatus = getGameStatus;
+const listAvailableGames = async (req, res) => {
+    try {
+        const games = await gameService_1.GameService.listAvailableGames();
+        return res.json({ success: true, data: games });
+    }
+    catch (error) {
+        console.error('List available games error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to list available games' });
+    }
+};
+exports.listAvailableGames = listAvailableGames;
+const joinGame = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
+    try {
+        const game = await gameService_1.GameService.joinGame(gameId, userId);
+        return res.json({ success: true, data: game });
+    }
+    catch (error) {
+        console.error('Join game error:', error);
+        return res.status(400).json({
+            success: false,
+            error: 'Failed to join game',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+};
+exports.joinGame = joinGame;
+const listUserGames = async (req, res) => {
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    try {
+        const games = await gameService_1.GameService.listUserGames(userId);
+        return res.json({ success: true, data: games });
+    }
+    catch (error) {
+        console.error('List user games error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to list user games' });
+    }
+};
+exports.listUserGames = listUserGames;
+const getAvailableMoves = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
+    try {
+        const moves = await gameService_1.GameService.getAvailableMoves(gameId, userId);
+        return res.json({ success: true, data: moves });
     }
     catch (error) {
         console.error('Get available moves error:', error);
-        res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to get available moves'
-        });
+        return res.status(500).json({ success: false, error: 'Failed to get available moves' });
     }
 };
 exports.getAvailableMoves = getAvailableMoves;
-// Obtenir le pip count
 const getPipCount = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
     try {
-        if (!req.user) {
-            return res.status(401).json({
-                success: false,
-                error: 'User not authenticated'
-            });
-        }
-        const gameIdParam = req.params.gameId;
-        if (!gameIdParam) {
-            return res.status(400).json({
-                success: false,
-                error: 'Game ID is required'
-            });
-        }
-        const gameId = parseInt(gameIdParam);
-        // Calculer le pip count via le service
         const pipCount = await gameService_1.GameService.getPipCount(gameId);
-        res.json({
-            success: true,
-            data: pipCount
-        });
+        return res.json({ success: true, data: pipCount });
     }
     catch (error) {
         console.error('Get pip count error:', error);
-        res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Failed to get pip count'
-        });
+        return res.status(500).json({ success: false, error: 'Failed to get pip count' });
     }
 };
 exports.getPipCount = getPipCount;
+const resignGame = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
+    try {
+        const result = await gameService_1.GameService.resignGame(gameId, userId);
+        return res.json({ success: true, data: result });
+    }
+    catch (error) {
+        console.error('Resign game error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to resign game' });
+    }
+};
+exports.resignGame = resignGame;
+const offerDraw = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
+    try {
+        const result = await gameService_1.GameService.offerDraw(gameId, userId);
+        return res.json({ success: true, data: result });
+    }
+    catch (error) {
+        console.error('Offer draw error:', error);
+        return res.status(500).json({ success: false, error: 'Failed to offer draw' });
+    }
+};
+exports.offerDraw = offerDraw;
+const getSuggestions = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized', message: 'Authentication required.' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
+    const id = gameId;
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
+    try {
+        const game = await gameService_1.GameService.getGame(gameId);
+        if (!game || !(0, auth_1.ensurePlayerInGame)(req, game)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Unauthorized',
+                message: 'You are not a player in this game.'
+            });
+        }
+        const { boardState, dice } = aiAnalysisBodySchema.parse(req.body ?? {});
+        const suggestion = await aiService_1.AIService.getBestMove({
+            boardState: boardState ?? game.board,
+            dice: dice ?? game.dice,
+            userId,
+            gameId: id
+        });
+        return res.json({
+            success: true,
+            data: { suggestion },
+            message: suggestion ? 'Suggestion generated successfully' : 'Suggestion service unavailable'
+        });
+    }
+    catch (error) {
+        if (error instanceof zod_1.z.ZodError) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid analysis payload',
+                message: error.issues.map((issue) => issue.message).join(', ')
+            });
+        }
+        if (error instanceof aiService_1.QuotaExceededError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                error: 'QuotaExceeded',
+                message: error.message
+            });
+        }
+        console.error('AI suggestion error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'AI_SERVICE_ERROR',
+            message: 'Failed to generate AI suggestion.'
+        });
+    }
+};
+exports.getSuggestions = getSuggestions;
+const evaluatePosition = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized', message: 'Authentication required.' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
+    const id = gameId;
+    try {
+        const game = await gameService_1.GameService.getGame(id);
+        if (!game || !(0, auth_1.ensurePlayerInGame)(req, game)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Unauthorized',
+                message: 'You are not a player in this game.'
+            });
+        }
+        const { boardState, dice } = aiAnalysisBodySchema.parse(req.body ?? {});
+        const evaluation = await aiService_1.AIService.evaluatePosition({
+            boardState: boardState ?? game.board,
+            dice: dice ?? game.dice,
+            userId,
+            gameId: id
+        });
+        return res.json({
+            success: true,
+            data: { evaluation },
+            message: evaluation ? 'Evaluation generated successfully' : 'Evaluation service unavailable'
+        });
+    }
+    catch (error) {
+        if (error instanceof zod_1.z.ZodError) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid analysis payload',
+                message: error.issues.map((issue) => issue.message).join(', ')
+            });
+        }
+        if (error instanceof aiService_1.QuotaExceededError) {
+            return res.status(error.statusCode).json({
+                success: false,
+                error: 'QuotaExceeded',
+                message: error.message
+            });
+        }
+        console.error('AI evaluation error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'AI_SERVICE_ERROR',
+            message: 'Failed to evaluate position.'
+        });
+    }
+};
+exports.evaluatePosition = evaluatePosition;
+const offerDouble = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
+    try {
+        const updatedGame = await gameService_1.GameService.offerDouble(gameId, userId);
+        return res.json({ success: true, data: updatedGame });
+    }
+    catch (error) {
+        console.error('Offer double error:', error);
+        return res.status(400).json({
+            success: false,
+            error: 'Failed to offer double',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+};
+exports.offerDouble = offerDouble;
+const respondToDouble = async (req, res) => {
+    const { gameId } = req.params;
+    const userId = req.user?.id;
+    const { accept, beaver, raccoon } = req.body;
+    if (!userId) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+    if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Game ID is required' });
+    }
+    if (typeof accept !== 'boolean') {
+        return res.status(400).json({ success: false, error: 'Accept (boolean) is required' });
+    }
+    try {
+        const updatedGame = await gameService_1.GameService.respondToDouble(gameId, userId, accept, Boolean(beaver), Boolean(raccoon));
+        return res.json({ success: true, data: updatedGame });
+    }
+    catch (error) {
+        console.error('Respond to double error:', error);
+        return res.status(400).json({
+            success: false,
+            error: 'Failed to respond to double',
+            message: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+};
+exports.respondToDouble = respondToDouble;
 //# sourceMappingURL=gameController.js.map

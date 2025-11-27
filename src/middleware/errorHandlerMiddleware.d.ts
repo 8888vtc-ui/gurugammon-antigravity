@@ -1,3 +1,3 @@
 import { Request, Response, NextFunction } from 'express';
-export declare function errorHandlerMiddleware(err: any, req: Request, res: Response, next: NextFunction): void;
+export declare function errorHandlerMiddleware(error: unknown, req: Request, res: Response, _next: NextFunction): void;
 //# sourceMappingURL=errorHandlerMiddleware.d.ts.map

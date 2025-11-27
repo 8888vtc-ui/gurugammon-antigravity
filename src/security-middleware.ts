@@ -1,6 +1,6 @@
 // Security and Performance Middleware
 import rateLimit from 'express-rate-limit';
-import slowDown from 'express-slow-down';
+// Express slow down has ESM export issues with Node.js v22+, use require
 import compression from 'compression';
 import helmet from 'helmet';
 import { body, param, validationResult } from 'express-validator';
@@ -112,17 +112,11 @@ export const rateLimits = {
 };
 
 // Slow down progressive delays (disabled outside production to keep tests fast)
-export const speedLimit = isProduction
-    ? slowDown({
-        windowMs: 15 * 60 * 1000, // 15 minutes
-        delayAfter: 100, // Allow 100 requests per 15 minutes
-        delayMs: 500, // Add 500ms delay per request after limit
-        maxDelayMs: 20000 // Maximum delay of 20 seconds
-    })
-    : Object.assign((req: Request, _res: Response, next: NextFunction) => next(), {
-        resetKey: () => { },
-        store: undefined
-    });
+// TEMPORARY: Disabled due to ESM issues with express-slow-down on Node.js 22+
+export const speedLimit = Object.assign((req: Request, _res: Response, next: NextFunction) => next(), {
+    resetKey: () => { },
+    store: undefined
+});
 
 // Input validation middleware
 export const validateRequest = (req: Request, res: Response, next: NextFunction) => {

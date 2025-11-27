@@ -9,6 +9,7 @@ exports.startGame = startGame;
 exports.finishGame = finishGame;
 exports.isGameAvailable = isGameAvailable;
 exports.getGameDuration = getGameDuration;
+const matchEngine_1 = require("../services/rules/matchEngine");
 // Initial board setup pour backgammon
 exports.INITIAL_BOARD = {
     positions: [
@@ -31,6 +32,21 @@ function createGame(player1, gameType, stake) {
         status: 'waiting',
         gameType,
         stake,
+        timeControl: null,
+        whiteTimeMs: null,
+        blackTimeMs: null,
+        matchLength: null,
+        crawford: (0, matchEngine_1.defaultCrawfordState)(),
+        cube: {
+            level: 1,
+            owner: null,
+            isCentered: true,
+            doublePending: false,
+            doubleOfferedBy: null,
+            history: []
+        },
+        whiteScore: 0,
+        blackScore: 0,
         winner: null,
         createdAt: new Date(),
         startedAt: null,
@@ -41,6 +57,22 @@ function createGame(player1, gameType, stake) {
 function createInitialGameState(player1) {
     return {
         ...createGame(player1, 'match', 100),
+        whiteScore: 0,
+        blackScore: 0,
+        timeControl: null,
+        whiteTimeMs: null,
+        blackTimeMs: null,
+        matchLength: null,
+        crawford: (0, matchEngine_1.defaultCrawfordState)(),
+        cube: {
+            level: 1,
+            owner: null,
+            isCentered: true,
+            doublePending: false,
+            doubleOfferedBy: null,
+            history: []
+        },
+        drawOfferBy: null,
         board: exports.INITIAL_BOARD,
         currentPlayer: 'white',
         dice: {
@@ -58,6 +90,7 @@ function startGame(game, player2) {
         ...game,
         player2,
         status: 'playing',
+        timeControl: game.timeControl ?? null,
         startedAt: new Date()
     };
 }
@@ -65,7 +98,7 @@ function startGame(game, player2) {
 function finishGame(game, winner) {
     return {
         ...game,
-        status: 'finished',
+        status: 'completed',
         winner,
         finishedAt: new Date()
     };

@@ -39,7 +39,9 @@ const child_process_1 = require("child_process");
 const util_1 = require("util");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const logger_1 = require("../utils/logger");
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
+const logger = new logger_1.Logger('GNUBGRunnerDebug');
 class GNUBGRunnerDebug {
     // Test simple pour voir le output brut de GNUBG
     static async testRawOutput() {
@@ -64,15 +66,13 @@ quit
             try {
                 // Exécuter GNUBG avec chemin complet Windows
                 const command = '"C:\\Program Files (x86)\\gnubg\\gnubg-cli.exe" -t < "' + inputFile + '"';
-                console.log('Exécution de la commande:', command);
+                logger.info('Exécution de la commande', { command });
                 const { stdout, stderr } = await execAsync(command, {
                     timeout: 10000,
                     cwd: tempDir
                 });
-                console.log('=== STDOUT ===');
-                console.log(stdout);
-                console.log('=== STDERR ===');
-                console.log(stderr);
+                logger.info('=== STDOUT ===', stdout);
+                logger.info('=== STDERR ===', stderr);
                 return { stdout, stderr };
             }
             finally {
@@ -83,7 +83,7 @@ quit
             }
         }
         catch (error) {
-            console.error('Erreur:', error);
+            logger.error('Erreur', error);
             throw error;
         }
     }

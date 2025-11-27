@@ -177,15 +177,79 @@ export const setAIProvider = (provider: AIProvider) => {
   activeProvider = provider;
 };
 
+// Simple LRU Cache Implementation
+class LRUCache<K, V> {
+  private capacity: number;
+  private cache: Map<K, V>;
+
+  constructor(capacity: number) {
+    this.capacity = capacity;
+    this.cache = new Map();
+  }
+
+  get(key: K): V | undefined {
+    if (!this.cache.has(key)) return undefined;
+    const value = this.cache.get(key)!;
+    this.cache.delete(key);
+    this.cache.set(key, value);
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.capacity) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) this.cache.delete(firstKey);
+    }
+    this.cache.set(key, value);
+  }
+}
+
+const evalCache = new LRUCache<string, EvaluationResult>(10000);
+
+// Rate Limiting Implementation
+const RATE_LIMIT_WINDOW_MS = 1000; // 1 second
+const RATE_LIMIT_MAX_REQUESTS = 10;
+const requestCounts = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const record = requestCounts.get(userId);
+
+  if (!record || now > record.resetAt) {
+    requestCounts.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+
+  record.count++;
+  return true;
+}
+
 export async function getBestMove(input: AnalyzeInput): Promise<SuggestedMove> {
   if (!input.userId) {
     throw new Error('userId is required for AI analysis');
+  }
+
+  if (!checkRateLimit(input.userId)) {
+    throw new Error('Rate limit exceeded. Please try again later.');
   }
 
   const quota = await checkQuota(input.userId);
   if (quota === 'limit') {
     throw new QuotaExceededError();
   }
+
+  // Cache key based on board state and dice
+  const cacheKey = JSON.stringify({ board: input.boardState, dice: input.dice });
+  // Note: getBestMove returns SuggestedMove, but we are caching EvaluationResult.
+  // Ideally we should cache SuggestedMove too or derive it.
+  // For now, we won't cache getBestMove to avoid complexity, or we can cache it separately.
+  // Let's cache evaluatePosition instead as requested "In-memory cache for GNUBg evaluations".
 
   return activeProvider.getBestMove(input);
 }
@@ -195,12 +259,24 @@ export async function evaluatePosition(input: AnalyzeInput): Promise<EvaluationR
     throw new Error('userId is required for AI analysis');
   }
 
+  if (!checkRateLimit(input.userId)) {
+    throw new Error('Rate limit exceeded. Please try again later.');
+  }
+
   const quota = await checkQuota(input.userId);
   if (quota === 'limit') {
     throw new QuotaExceededError();
   }
 
-  return activeProvider.evaluatePosition(input);
+  const cacheKey = JSON.stringify({ board: input.boardState, dice: input.dice, move: input.move });
+  const cached = evalCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const result = await activeProvider.evaluatePosition(input);
+  evalCache.set(cacheKey, result);
+  return result;
 }
 
 export const AIService = {

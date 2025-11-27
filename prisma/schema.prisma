@@ -97,11 +97,14 @@ model game_moves {
   player       Player
   dice         Int[]
   move         String
+  moveJson     Json?  @map("move_json")
   fromPoint    Int?   @map("from_point")
   toPoint      Int?   @map("to_point")
   equity       Float?
   pr           Float?
   thinkingTime Int?   @map("thinking_time")
+  timestamp    DateTime @default(now())
+  hash         String?
   createdAt    DateTime @default(now())
   game         games    @relation(fields: [gameId], references: [id], onDelete: Cascade)
   user         users?   @relation(fields: [userId], references: [id])
@@ -332,6 +335,7 @@ model user_learning_progress {
   score       Int?     // Quiz score if applicable
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
+  user        users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, rule_key])
   @@map("user_learning_progress")
@@ -345,6 +349,7 @@ model user_achievements {
   icon        String   // Emoji or icon identifier
   unlocked_at DateTime @default(now())
   category    String   // 'learning', 'gaming', 'social'
+  user        users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("user_achievements")
 }
@@ -358,131 +363,7 @@ model user_preferences {
   notifications Boolean @default(true) // Push notifications
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-
-  @@map("user_preferences")
-}
-
-model users {
-  id                    String   @id
-  email                 String   @unique
-  password              String
-  username              String?  @unique
-  firstName             String?  @map("first_name")
-  lastName              String?  @map("last_name")
-  avatarUrl             String?  @map("avatar_url")
-  country               String?  @map("country")
-  eloRating             Int      @default(1500) @map("elo_rating")
-  gamesPlayed           Int      @default(0) @map("games_played")
-  gamesWon              Int      @default(0) @map("games_won")
-  winRate               Float    @default(0) @map("win_rate")
-  currentStreak         Int      @default(0) @map("current_streak")
-  bestStreak            Int      @default(0) @map("best_streak")
-  subscriptionType      SubscriptionType @default(FREE) @map("subscription_type")
-  subscriptionExpiresAt DateTime? @map("subscription_expires_at")
-  createdAt             DateTime  @default(now()) @map("created_at")
-  updatedAt             DateTime  @updatedAt @map("updated_at")
-  analyses              analyses[]
-  analysisQuotas        AnalysisQuota[]
-  iaQuota               IAQuota?
-  sessions              UserSession[]
-  chatMessages          chat_messages[]
-  gameMoves             game_moves[]
-  userAnalytics         user_analytics[]
-  gameAnalyses          game_analyses[]
-  subscription          subscriptions?
-  tournamentParticipants tournament_participants[]
-  tournaments           tournaments[]
-  websocketConnections  websocket_connections[]
-  whiteGames            games[] @relation("white_games")
-  blackGames            games[] @relation("black_games")
-  gameSessions          GameSession[]
-  seasonStats           user_season_stats[]
-  seasonLeaderboards    season_leaderboard[]
-  quotaHistory          user_quota_history[]
-
-  @@map("users")
-}
-
-model seasons {
-  id          String   @id @default(uuid())
-  name        String
-  startDate   DateTime @map("start_date")
-  endDate     DateTime? @map("end_date")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  seasonStats user_season_stats[]
-  leaderboards season_leaderboard[]
-  quotaHistory user_quota_history[]
-
-  @@map("seasons")
-}
-
-model user_season_stats {
-  id          String  @id @default(uuid())
-  userId      String  @map("user_id")
-  seasonId    String  @map("season_id")
-  elo         Int
-  winrate     Float
-  gamesPlayed Int     @map("games_played")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  user   users   @relation(fields: [userId], references: [id])
-  season seasons @relation(fields: [seasonId], references: [id])
-
-  @@unique([userId, seasonId])
-  @@map("user_season_stats")
-}
-
-model season_leaderboard {
-  id          String @id @default(uuid())
-  seasonId    String @map("season_id")
-  userId      String @map("user_id")
-  rankGlobal  Int    @map("rank_global")
-  rankCountry Int    @map("rank_country")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  user   users   @relation(fields: [userId], references: [id])
-  season seasons @relation(fields: [seasonId], references: [id])
-
-  @@unique([seasonId, userId])
-  @@map("season_leaderboard")
-}
-
-model user_quota_history {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  seasonId  String   @map("season_id")
-  quotaUsed Int      @map("quota_used")
-  timestamp DateTime @default(now())
-
-  user   users   @relation(fields: [userId], references: [id])
-  season seasons @relation(fields: [seasonId], references: [id])
-
-  @@map("user_quota_history")
-}
-
-model websocket_connections {
-  id           String   @id
-  connectionId String   @unique @map("connection_id")
-  userId       String   @map("user_id")
-  gameId       String?  @map("game_id")
-  connectedAt  DateTime @default(now()) @map("connected_at")
-  lastPing     DateTime @default(now()) @map("last_ping")
-  isActive     Boolean  @default(true) @map("is_active")
-  game         games?   @relation(fields: [gameId], references: [id])
-  user         users    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([gameId])
-  @@index([userId])
-  @@map("websocket_connections")
-}
-
-enum AnalysisType {
-  FULL
-  HINT
-  EVALUATE
+  user       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 enum GameMode {
@@ -561,4 +442,130 @@ enum TournamentMatchStatus {
 enum MatchState {
   IN_PROGRESS
   FINISHED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  ADMIN_FED
+}
+
+enum AnalysisType {
+  QUICK
+  FULL
+  DEEP
+}
+
+model users {
+  id                    String   @id @default(uuid())
+  email                 String   @unique
+  password              String
+  username              String?  @unique
+  firstName             String?  @map("first_name")
+  lastName              String?  @map("last_name")
+  avatarUrl             String?  @map("avatar_url")
+  country               String?  @map("country")
+  eloRating             Int      @default(1500) @map("elo_rating")
+  gamesPlayed           Int      @default(0) @map("games_played")
+  gamesWon              Int      @default(0) @map("games_won")
+  winRate               Float    @default(0) @map("win_rate")
+  currentStreak         Int      @default(0) @map("current_streak")
+  bestStreak            Int      @default(0) @map("best_streak")
+  subscriptionType      SubscriptionType @default(FREE) @map("subscription_type")
+  subscriptionExpiresAt DateTime? @map("subscription_expires_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  role                  UserRole  @default(USER)
+  
+  analyses              analyses[]
+  analysisQuotas        AnalysisQuota[]
+  iaQuota               IAQuota?
+  sessions              UserSession[]
+  chatMessages          chat_messages[]
+  gameMoves             game_moves[]
+  userAnalytics         user_analytics[]
+  gameAnalyses          game_analyses[]
+  subscription          subscriptions?
+  tournamentParticipants tournament_participants[]
+  tournaments           tournaments[]
+  websocketConnections  websocket_connections[]
+  whiteGames            games[] @relation("white_games")
+  blackGames            games[] @relation("black_games")
+  gameSessions          GameSession[]
+  seasonStats           user_season_stats[]
+  seasonLeaderboards    season_leaderboard[]
+  quotaHistory          user_quota_history[]
+  learningProgress      user_learning_progress[]
+  achievements          user_achievements[]
+  preferences           user_preferences?
+  createdInvites        invite_codes[] @relation("created_invites")
+  usedInvite            invite_codes?  @relation("used_invite")
+
+  @@map("users")
+}
+
+model invite_codes {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  createdBy String   @map("created_by")
+  usedBy    String?  @map("used_by")
+  role      UserRole @default(USER)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  creator   users    @relation("created_invites", fields: [createdBy], references: [id])
+  user      users?   @relation("used_invite", fields: [usedBy], references: [id])
+
+  @@map("invite_codes")
+}
+
+model websocket_connections {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  gameId    String?  @map("game_id")
+  socketId  String   @map("socket_id")
+  connectedAt DateTime @default(now()) @map("connected_at")
+  
+  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game      games?   @relation(fields: [gameId], references: [id], onDelete: SetNull)
+
+  @@map("websocket_connections")
+}
+
+model user_season_stats {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  seasonId  String   @map("season_id")
+  wins      Int      @default(0)
+  losses    Int      @default(0)
+  rating    Int      @default(1500)
+  
+  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, seasonId])
+  @@map("user_season_stats")
+}
+
+model season_leaderboard {
+  id        String   @id @default(uuid())
+  seasonId  String   @map("season_id")
+  userId    String   @map("user_id")
+  rank      Int
+  points    Int
+  
+  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("season_leaderboard")
+}
+
+model user_quota_history {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  change    Int
+  reason    String
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user      users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_quota_history")
 }

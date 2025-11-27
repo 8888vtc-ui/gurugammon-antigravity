@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkInstallation = exports.analyzeGame = exports.evaluatePosition = exports.getHint = void 0;
+exports.checkInstallation = exports.analyzeGame = exports.evaluatePosition = exports.purchaseAnalyses = exports.getQuotaStatus = exports.getHint = void 0;
+const aiService_1 = require("../services/aiService");
+const gnubgService_1 = require("../services/gnubgService");
 const gnubgRunner_1 = require("../services/gnubgRunner");
 // Obtenir une suggestion de mouvement
 const getHint = async (req, res) => {
@@ -11,7 +13,7 @@ const getHint = async (req, res) => {
                 error: 'User not authenticated'
             });
         }
-        const { board, dice } = req.body;
+        const { board, dice, move, gameId } = req.body;
         // Validation
         if (!board || !dice) {
             return res.status(400).json({
@@ -26,13 +28,25 @@ const getHint = async (req, res) => {
             });
         }
         // Obtenir la suggestion de GNUBG
-        const hint = await gnubgRunner_1.GNUBGRunner.getHint(board, dice);
+        const hint = await gnubgService_1.gnubgService.getHint({
+            board,
+            dice,
+            move: move ?? null,
+            userId: req.user.id,
+            gameId: gameId ?? null
+        });
         res.json({
             success: true,
             data: hint
         });
     }
     catch (error) {
+        if (error instanceof aiService_1.QuotaExceededError) {
+            return res.status(429).json({
+                success: false,
+                error: 'QuotaExceeded'
+            });
+        }
         console.error('GNUBG hint error:', error);
         res.status(500).json({
             success: false,
@@ -41,6 +55,74 @@ const getHint = async (req, res) => {
     }
 };
 exports.getHint = getHint;
+// Obtenir le statut de quota IA
+const getQuotaStatus = async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                error: 'User not authenticated'
+            });
+        }
+        if (!aiService_1.AIService.getQuotaStatus) {
+            return res.status(503).json({
+                success: false,
+                error: 'Quota service unavailable'
+            });
+        }
+        const quota = await aiService_1.AIService.getQuotaStatus(req.user.id);
+        return res.status(200).json({
+            success: true,
+            data: quota
+        });
+    }
+    catch (error) {
+        console.error('Get quota status error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to retrieve quota status'
+        });
+    }
+};
+exports.getQuotaStatus = getQuotaStatus;
+// Acheter des analyses supplémentaires
+const purchaseAnalyses = async (req, res) => {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                error: 'User not authenticated'
+            });
+        }
+        const rawAmount = req.body?.amount;
+        const amount = Number(rawAmount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid amount provided'
+            });
+        }
+        if (!aiService_1.AIService.addExtraQuota) {
+            return res.status(503).json({
+                success: false,
+                error: 'Quota purchase service unavailable'
+            });
+        }
+        const extraQuota = await aiService_1.AIService.addExtraQuota(req.user.id, amount);
+        return res.status(200).json({
+            success: true,
+            data: { extraQuota }
+        });
+    }
+    catch (error) {
+        console.error('Purchase analyses error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to purchase analyses'
+        });
+    }
+};
+exports.purchaseAnalyses = purchaseAnalyses;
 // Évaluer une position
 const evaluatePosition = async (req, res) => {
     try {
@@ -50,7 +132,7 @@ const evaluatePosition = async (req, res) => {
                 error: 'User not authenticated'
             });
         }
-        const { board } = req.body;
+        const { board, dice, gameId } = req.body;
         // Validation
         if (!board) {
             return res.status(400).json({
@@ -59,13 +141,24 @@ const evaluatePosition = async (req, res) => {
             });
         }
         // Évaluer la position avec GNUBG
-        const evaluation = await gnubgRunner_1.GNUBGRunner.evaluatePosition(board);
+        const evaluation = await gnubgService_1.gnubgService.evaluatePosition({
+            board,
+            dice: dice ?? null,
+            userId: req.user.id,
+            gameId: gameId ?? null
+        });
         res.json({
             success: true,
             data: evaluation
         });
     }
     catch (error) {
+        if (error instanceof aiService_1.QuotaExceededError) {
+            return res.status(429).json({
+                success: false,
+                error: 'QuotaExceeded'
+            });
+        }
         console.error('GNUBG evaluation error:', error);
         res.status(500).json({
             success: false,
@@ -92,13 +185,19 @@ const analyzeGame = async (req, res) => {
             });
         }
         // Analyser la partie avec GNUBG
-        const analysis = await gnubgRunner_1.GNUBGRunner.analyzeGame(moves);
+        const analysis = await gnubgService_1.gnubgService.analyzeGame({ moves });
         res.json({
             success: true,
             data: analysis
         });
     }
     catch (error) {
+        if (error instanceof aiService_1.QuotaExceededError) {
+            return res.status(429).json({
+                success: false,
+                error: 'QuotaExceeded'
+            });
+        }
         console.error('GNUBG analysis error:', error);
         res.status(500).json({
             success: false,

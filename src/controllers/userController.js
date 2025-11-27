@@ -1,8 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateProfile = exports.getProfile = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = require("../lib/prisma");
 // Obtenir le profil de l'utilisateur connecté
 const getProfile = async (req, res) => {
     try {
@@ -13,15 +12,13 @@ const getProfile = async (req, res) => {
             });
         }
         // Récupérer les informations complètes de l'utilisateur
-        const user = await prisma.users.findUnique({
+        const user = await prisma_1.prisma.users.findUnique({
             where: { id: req.user.id },
             select: {
                 id: true,
                 username: true,
                 email: true,
-                elo: true,
-                createdAt: true,
-                lastLoginAt: true
+                createdAt: true
                 // Ne pas inclure le mot de passe
             }
         });
@@ -54,16 +51,14 @@ const updateProfile = async (req, res) => {
             });
         }
         const { username } = req.body;
-        const updatedUser = await prisma.users.update({
+        const updatedUser = await prisma_1.prisma.users.update({
             where: { id: req.user.id },
             data: { username },
             select: {
                 id: true,
                 username: true,
                 email: true,
-                elo: true,
-                createdAt: true,
-                lastLoginAt: true
+                createdAt: true
             }
         });
         res.json({

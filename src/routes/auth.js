@@ -13,5 +13,7 @@ router.post('/register', authController_1.register);
 router.post('/login', authController_1.login);
 // POST /api/auth/logout
 router.post('/logout', authController_1.logout);
+// POST /api/auth/refresh
+router.post('/refresh', authController_1.refreshToken);
 exports.default = router;
 //# sourceMappingURL=auth.js.map

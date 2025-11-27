@@ -1,4 +1,14 @@
 import { Player } from '../types/player';
-export declare function createFullPlayer(partialPlayer: any): Player;
-export declare function convertPrismaPlayer(prismaPlayer: any): Player;
+type MinimalPlayer = {
+    id: string;
+    email: string;
+    name: string;
+    points: number;
+    isPremium?: boolean;
+    createdAt?: Date;
+    updatedAt?: Date;
+};
+export declare function createFullPlayer(partialPlayer: MinimalPlayer): Player;
+export declare function convertPrismaPlayer(prismaPlayer: MinimalPlayer): Player;
+export {};
 //# sourceMappingURL=playerUtils.d.ts.map

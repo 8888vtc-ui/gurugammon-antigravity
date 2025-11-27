@@ -11,12 +11,17 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const cors_1 = __importDefault(require("cors"));
 exports.cors = cors_1.default;
 // Configuration CORS
+const ALLOWED_DEV_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+const resolveCorsOrigins = () => {
+    if (process.env.NODE_ENV === 'production') {
+        const frontendUrl = process.env.FRONTEND_URL || process.env.CORS_ORIGIN;
+        return frontendUrl ? [frontendUrl] : [];
+    }
+    const base = process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000';
+    return [base, ...ALLOWED_DEV_ORIGINS];
+};
 const corsOptions = {
-    origin: [
-        process.env.FRONTEND_URL || 'http://localhost:3000',
-        'http://localhost:5173', // Frontend Vue.js development server
-        'http://127.0.0.1:5173' // Alternative localhost
-    ],
+    origin: resolveCorsOrigins(),
     credentials: true, // Permettre les cookies/headers d'auth
     optionsSuccessStatus: 200
 };

@@ -15,6 +15,24 @@ declare module 'express-slow-down' {
   export = slowDown;
 }
 
+declare module 'express-rate-limit' {
+  import { RequestHandler } from 'express';
+  interface Options {
+    windowMs?: number;
+    max?: number;
+    message?: string | object;
+    statusCode?: number;
+    headers?: boolean;
+    draft_polli_ratelimit_headers?: boolean;
+    standardHeaders?: boolean;
+    legacyHeaders?: boolean;
+    skip?: (req: any, res: any) => boolean;
+    handler?: (req: any, res: any, next: any) => void;
+  }
+  function rateLimit(options?: Options): RequestHandler;
+  export default rateLimit;
+}
+
 declare module './cache-service' {
   export type CacheKeyGenerator = (...args: unknown[]) => string;
 

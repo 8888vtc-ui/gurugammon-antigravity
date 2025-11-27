@@ -34,13 +34,13 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.GNUBGRunner = void 0;
-// src/services/gnubgRunner.ts
-// @ts-nocheck - Désactiver les vérifications strictes pour l'intégration GNUBG
 const child_process_1 = require("child_process");
 const util_1 = require("util");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const logger_1 = require("../utils/logger");
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
+const logger = new logger_1.Logger('GNUBGRunner');
 class GNUBGRunner {
     // Convertir notre BoardState vers format GNUBG
     static boardToGNUBGFormat(board) {
@@ -81,7 +81,7 @@ class GNUBGRunner {
             }
         }
         catch (error) {
-            console.warn('Failed to cleanup temp file:', error);
+            logger.warn('Failed to cleanup temp file', error);
         }
     }
     // Obtenir une suggestion de mouvement de GNUBG
@@ -110,13 +110,13 @@ quit
                         cwd: path.join(__dirname, '../../temp')
                     });
                     if (stderr) {
-                        console.warn('GNUBG warning:', stderr);
+                        logger.warn('GNUBG warning', stderr);
                     }
                     // Parser le résultat
                     const hint = this.parseHintOutput(stdout);
                     return hint;
                 }
-                catch (windowsError) {
+                catch (_windowsError) {
                     // Essayer avec chemin complet Windows
                     command = '"C:\\Program Files (x86)\\gnubg\\gnubg-cli.exe" -t < "' + inputFile + '"';
                     const { stdout, stderr } = await execAsync(command, {
@@ -136,7 +136,7 @@ quit
             }
         }
         catch (error) {
-            console.error('GNUBG error:', error);
+            logger.error('GNUBG error', error);
             throw new Error(`Failed to get hint from GNUBG: ${error}`);
         }
     }
@@ -150,7 +150,7 @@ quit
             // Format : "1. Cubeful 2-ply    8/3 6/3                      Eq.: +0.075"
             if (line.match(/^\s*1\.\s+Cubeful.*\s+(\d+\/\d+(?:\s+\d+\/\d*)*)\s+.*Eq\.:\s*([+-]?\d+\.?\d*)/)) {
                 const match = line.match(/^\s*1\.\s+Cubeful.*\s+(\d+\/\d+(?:\s+\d+\/\d*)*)\s+.*Eq\.:\s*([+-]?\d+\.?\d*)/);
-                if (match) {
+                if (match && match[1] && match[2]) {
                     bestMove = match[1];
                     evaluation = parseFloat(match[2]);
                     break;
@@ -178,8 +178,19 @@ quit
             };
         }
         // Prendre le premier mouvement pour simplifier
+        // Prendre le premier mouvement pour simplifier
         const firstMove = moves[0];
-        const [from, to] = firstMove.split('/').map(Number);
+        if (!firstMove) {
+            return {
+                from: 0,
+                to: 1,
+                player: 'white',
+                diceUsed: 1
+            };
+        }
+        const parts = firstMove.split('/');
+        const from = parseInt(parts[0] || '0', 10);
+        const to = parseInt(parts[1] || '0', 10);
         if (isNaN(from) || isNaN(to)) {
             return {
                 from: 0,
@@ -214,7 +225,7 @@ quit
                     });
                     return this.parseEvaluationOutput(stdout);
                 }
-                catch (windowsError) {
+                catch (_windowsError) {
                     // Essayer avec chemin complet Windows
                     command = '"C:\\Program Files (x86)\\gnubg\\gnubg-cli.exe" -t < "' + inputFile + '"';
                     const { stdout } = await execAsync(command, {
@@ -229,7 +240,7 @@ quit
             }
         }
         catch (error) {
-            console.error('GNUBG evaluation error:', error);
+            logger.error('GNUBG evaluation error', error);
             throw new Error(`Failed to evaluate position: ${error}`);
         }
     }
@@ -243,22 +254,22 @@ quit
         for (const line of lines) {
             if (line.includes('Equity:')) {
                 const match = line.match(/Equity:\s*([+-]?\d+\.?\d*)/);
-                if (match)
+                if (match && match[1])
                     equity = parseFloat(match[1]);
             }
             if (line.includes('Win:')) {
                 const match = line.match(/Win:\s*(\d+\.?\d*)%/);
-                if (match)
+                if (match && match[1])
                     winProb = parseFloat(match[1]) / 100;
             }
             if (line.includes('Gammon:')) {
                 const match = line.match(/Gammon:\s*(\d+\.?\d*)%/);
-                if (match)
+                if (match && match[1])
                     gammonProb = parseFloat(match[1]) / 100;
             }
             if (line.includes('Backgammon:')) {
                 const match = line.match(/Backgammon:\s*(\d+\.?\d*)%/);
-                if (match)
+                if (match && match[1])
                     backgammonProb = parseFloat(match[1]) / 100;
             }
         }
@@ -270,19 +281,14 @@ quit
         };
     }
     // Analyser une partie complète
-    static async analyzeGame(moves) {
-        try {
-            // TODO: Implémenter l'analyse de partie complète
-            return {
-                totalError: 0.0,
-                errorRate: 0.0,
-                criticalMoves: 0,
-                analysis: 'Game analysis not yet implemented'
-            };
-        }
-        catch (error) {
-            throw new Error(`Failed to analyze game: ${error}`);
-        }
+    static async analyzeGame(_moves) {
+        // TODO: Implémenter l'analyse de partie complète via GNUBG
+        return {
+            totalError: 0.0,
+            errorRate: 0.0,
+            criticalMoves: 0,
+            analysis: 'Game analysis not yet implemented'
+        };
     }
     // Vérifier que GNUBG est installé
     static async checkInstallation() {
