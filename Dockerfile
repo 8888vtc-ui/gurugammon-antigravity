@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM node:20.19.0 AS build
+FROM node:20.19.0-slim AS build
 WORKDIR /app
 
 # Copy package files first for better layer caching
@@ -42,15 +42,15 @@ RUN npx prisma generate
 
 # Install curl for healthcheck
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
+  apt-get install -y --no-install-recommends curl && \
+  rm -rf /var/lib/apt/lists/*
 
 # Environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
 
-# Healthcheck – utilise l'endpoint interne non filtré
+# Healthcheck
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -fsS http://localhost:${PORT:-3000}/health/internal || exit 1
 
