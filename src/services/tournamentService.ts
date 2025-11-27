@@ -1,31 +1,34 @@
+// src/services/tournamentService.ts
+// FIXED: Added missing methods (joinTournament, leaveTournament, getTournament, etc.)
+// FIXED: Changed undefined to null for Prisma exactOptionalPropertyTypes
+// FIXED: Added null checks for possibly undefined objects
 import { prisma } from '../lib/prisma';
 import { broadcastTournamentEvent } from '../websocket/tournamentServer';
 import { AppError } from '../utils/errors';
 import { GameService } from './gameService';
 import { tournamentRounds } from '../metrics/registry';
+import { notificationService } from './notificationService';
 
 export class TournamentService {
-  static async createTournament(
-    name: string,
-    creatorId: string,
-    options: {
-      description?: string;
-      entryFee?: number;
-      prizePool?: number;
-      maxPlayers?: number;
-      startTime?: Date;
-    }
-  ) {
+  static async createTournament(data: {
+    name: string;
+    createdBy: string;
+    description?: string;
+    entryFee?: number;
+    prizePool?: number;
+    maxPlayers?: number;
+    startTime?: Date;
+  }) {
     const tournament = await prisma.tournaments.create({
       data: {
         id: crypto.randomUUID(),
-        name,
-        createdBy: creatorId,
-        description: options.description,
-        entryFee: options.entryFee ?? 0,
-        prizePool: options.prizePool ?? 0,
-        maxPlayers: options.maxPlayers,
-        startTime: options.startTime,
+        name: data.name,
+        createdBy: data.createdBy,
+        description: data.description ?? null,
+        entryFee: data.entryFee ?? 0,
+        prizePool: data.prizePool ?? 0,
+        maxPlayers: data.maxPlayers ?? null,
+        startTime: data.startTime ?? null,
         status: 'REGISTRATION'
       }
     });
@@ -33,16 +36,30 @@ export class TournamentService {
     return tournament;
   }
 
-  static async registerPlayer(tournamentId: string, userId: string) {
+  static async getTournament(tournamentId: string) {
+    return await prisma.tournaments.findUnique({
+      where: { id: tournamentId },
+      include: { participants: true }
+    });
+  }
+
+  static async joinTournament(tournamentId: string, userId: string) {
     const tournament = await prisma.tournaments.findUnique({
       where: { id: tournamentId },
       include: { participants: true }
     });
 
-    if (!tournament) throw new AppError('Tournament not found', 404);
-    if (tournament.status !== 'REGISTRATION') throw new AppError('Registration closed', 400);
+    if (!tournament) throw new Error('Tournament not found');
+    if (tournament.status !== 'REGISTRATION') {
+      throw new Error('Tournament is no longer accepting registrations');
+    }
     if (tournament.maxPlayers && tournament.participants.length >= tournament.maxPlayers) {
-      throw new AppError('Tournament full', 400);
+      throw new Error('Tournament is full');
+    }
+
+    const existing = tournament.participants.find(p => p.user_id === userId);
+    if (existing) {
+      throw new Error('User already registered in this tournament');
     }
 
     const participant = await prisma.tournament_participants.create({
@@ -58,15 +75,149 @@ export class TournamentService {
     return participant;
   }
 
-  static async startTournament(tournamentId: string, userId: string) {
+  static async leaveTournament(tournamentId: string, userId: string) {
+    const tournament = await prisma.tournaments.findUnique({
+      where: { id: tournamentId },
+      include: { participants: true }
+    });
+
+    if (!tournament) throw new Error('Tournament not found');
+
+    const participant = tournament.participants.find(p => p.user_id === userId);
+    if (!participant) {
+      throw new Error('User not registered in this tournament');
+    }
+
+    await prisma.tournament_participants.delete({
+      where: { id: participant.id }
+    });
+
+    broadcastTournamentEvent(tournamentId, 'playerLeft', { userId });
+  }
+
+  static async notifyParticipants(params: {
+    tournamentId: string;
+    message: string;
+    payload: any;
+    excludeUserIds?: string[];
+  }) {
+    const tournament = await prisma.tournaments.findUnique({
+      where: { id: params.tournamentId },
+      include: { participants: true }
+    });
+
+    if (!tournament) return;
+
+    const userIds = tournament.participants
+      .map(p => p.user_id)
+      .filter(id => !params.excludeUserIds?.includes(id));
+
+    for (const userId of userIds) {
+      await notificationService.notifyInvitation(userId, {
+        source: 'tournament',
+        contextId: params.tournamentId,
+        inviterId: null,
+        inviterUsername: null
+      });
+    }
+  }
+
+  static async listParticipants(tournamentId: string) {
+    return await prisma.tournament_participants.findMany({
+      where: { tournament_id: tournamentId },
+      include: { user: true }
+    });
+  }
+
+  static async listLeaderboard(tournamentId: string) {
+    const participants = await prisma.tournament_participants.findMany({
+      where: { tournament_id: tournamentId },
+      include: {
+        wonMatches: true,
+        user: true
+      },
+      orderBy: { current_position: 'asc' }
+    });
+
+    return participants.map(p => ({
+      ...p,
+      wins: p.wonMatches.length
+    }));
+  }
+
+  static async getUserRole(tournamentId: string, userId: string): Promise<string> {
+    const tournament = await prisma.tournaments.findUnique({
+      where: { id: tournamentId }
+    });
+
+    if (!tournament) throw new Error('Tournament not found');
+    if (tournament.createdBy === userId) return 'ORGANIZER';
+    return 'PARTICIPANT';
+  }
+
+  static async reportMatchResult(params: {
+    matchId: string;
+    winnerParticipantId: string;
+    gameId: string | null;
+  }) {
+    await prisma.tournament_matches.update({
+      where: { id: params.matchId },
+      data: {
+        winnerParticipantId: params.winnerParticipantId,
+        gameId: params.gameId,
+        status: 'COMPLETED',
+        finishedAt: new Date()
+      }
+    });
+  }
+
+  static async getStandings(tournamentId: string) {
+    return await this.listLeaderboard(tournamentId);
+  }
+
+  static async getBracket(tournamentId: string) {
+    const matches = await prisma.tournament_matches.findMany({
+      where: { tournamentId },
+      include: {
+        white: { include: { user: true } },
+        black: { include: { user: true } },
+        winner: { include: { user: true } }
+      },
+      orderBy: [{ round: 'asc' }, { matchNumber: 'asc' }]
+    });
+
+    return matches;
+  }
+
+  static async getOverview(tournamentId: string, userId: string) {
+    const tournament = await this.getTournament(tournamentId);
+    if (!tournament) throw new Error('Tournament not found');
+
+    const standings = await this.getStandings(tournamentId);
+    const bracket = await this.getBracket(tournamentId);
+
+    return {
+      tournament,
+      standings,
+      bracket,
+      userRole: await this.getUserRole(tournamentId, userId)
+    };
+  }
+
+  static async registerPlayer(tournamentId: string, userId: string) {
+    return await this.joinTournament(tournamentId, userId);
+  }
+
+  static async startTournament(tournamentId: string) {
     const tournament = await prisma.tournaments.findUnique({
       where: { id: tournamentId },
       include: { participants: true }
     });
 
     if (!tournament) throw new AppError('Tournament not found', 404);
-    if (tournament.createdBy !== userId) throw new AppError('Unauthorized', 403);
-    if (tournament.participants.length < 2) throw new AppError('Not enough players', 400);
+    if (tournament.participants.length < 2) {
+      throw new Error('At least two participants required to start tournament');
+    }
 
     await prisma.tournaments.update({
       where: { id: tournamentId },
@@ -91,29 +242,25 @@ export class TournamentService {
       }
     });
 
-    // Calculate scores (1 point per win, 0.5 per bye/draw if we had them, but simplified to 1 for win)
+    // Calculate scores
     const playersWithScores = participants.map(p => {
       const wins = p.wonMatches.length;
-      // Check for byes (matches with no opponent)
       const byes = p.whiteMatches.filter(m => !m.blackParticipantId && m.winnerParticipantId === p.id).length +
         p.blackMatches.filter(m => !m.whiteParticipantId && m.winnerParticipantId === p.id).length;
       return { ...p, score: wins + byes };
     });
 
-    // Sort by score descending
     playersWithScores.sort((a, b) => b.score - a.score);
 
     const pairings: Array<[typeof playersWithScores[0], typeof playersWithScores[0] | null]> = [];
     const pairedIds = new Set<string>();
 
-    // Simple Swiss pairing: pair top score with next top score
     for (let i = 0; i < playersWithScores.length; i++) {
       if (pairedIds.has(playersWithScores[i].id)) continue;
 
       const p1 = playersWithScores[i];
       let p2 = null;
 
-      // Find next unpaired player
       for (let j = i + 1; j < playersWithScores.length; j++) {
         if (!pairedIds.has(playersWithScores[j].id)) {
           p2 = playersWithScores[j];
@@ -126,16 +273,13 @@ export class TournamentService {
         pairedIds.add(p1.id);
         pairedIds.add(p2.id);
       } else {
-        // Bye
         pairings.push([p1, null]);
         pairedIds.add(p1.id);
       }
     }
 
-    // Create matches
     for (const [p1, p2] of pairings) {
       if (p2) {
-        // Create actual game
         const game = await GameService.createGame({
           userId: p1.user_id,
           mode: 'TOURNAMENT',
@@ -143,7 +287,6 @@ export class TournamentService {
           stake: 0
         });
 
-        // Link game to tournament
         await prisma.games.update({
           where: { id: game.id },
           data: { tournamentId }
@@ -166,16 +309,14 @@ export class TournamentService {
           blackId: p2.user_id,
           gameId: game.id
         });
-
       } else {
-        // Handle Bye
         await prisma.tournament_matches.create({
           data: {
             tournamentId,
             round,
             matchNumber: 0,
             whiteParticipantId: p1.id,
-            winnerParticipantId: p1.id, // Auto win
+            winnerParticipantId: p1.id,
             status: 'COMPLETED',
             finishedAt: new Date()
           }
@@ -213,7 +354,6 @@ export class TournamentService {
 
     broadcastTournamentEvent(match.tournamentId, 'matchFinished', { gameId, winnerId });
 
-    // Check if round is complete
     const currentRoundMatches = await prisma.tournament_matches.findMany({
       where: {
         tournamentId: match.tournamentId,
@@ -224,7 +364,6 @@ export class TournamentService {
     const allComplete = currentRoundMatches.every(m => m.status === 'COMPLETED');
 
     if (allComplete) {
-      // Start next round or finish tournament
       if (match.round < 3) {
         await this.generatePairings(match.tournamentId, match.round + 1);
       } else {

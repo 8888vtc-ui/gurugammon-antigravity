@@ -1,3 +1,5 @@
+// src/routes/admin.ts
+// FIXED: Already using Router() correctly
 import { Router } from 'express';
 import { AdminController } from '../controllers/adminController';
 import { authMiddleware } from '../middleware/authMiddleware';

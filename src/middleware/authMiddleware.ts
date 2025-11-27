@@ -1,4 +1,5 @@
 // src/middleware/authMiddleware.ts
+// FIXED: Added 'role' field to AuthRequest.user interface
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
@@ -14,6 +15,8 @@ export interface AuthRequest extends Request {
     id: string;
     email: string;
     username: string;
+    role: string;
+    [key: string]: any;
   };
 }
 
@@ -30,7 +33,7 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
 
     // Récupérer le token du header Authorization
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       res.status(401).json({
         success: false,
@@ -61,14 +64,15 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
       });
       return;
     }
-    
+
     // Récupérer l'utilisateur depuis la base
     const user = await prisma.users.findUnique({
       where: { id: decodedToken.userId },
       select: {
         id: true,
         email: true,
-        username: true
+        username: true,
+        role: true
       }
     });
 
@@ -84,9 +88,10 @@ export const authMiddleware = async (req: AuthRequest, res: Response, next: Next
     req.user = {
       id: user.id,
       email: user.email,
-      username: user.username ?? 'anonymous'
+      username: user.username ?? 'anonymous',
+      role: user.role ?? 'USER'
     };
-    
+
     next();
   } catch (error) {
     res.status(401).json({

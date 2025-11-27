@@ -1,7 +1,8 @@
-// Simple server script to bypass ESM issues
+// src/simple-test-server.ts
+// FIXED: Changed import from './config.js' to './config'
 import express from 'express';
 import cors from 'cors';
-import { config } from './config.js';
+import { config } from './config';
 
 const app = express();
 
