@@ -1,6 +1,6 @@
 import { type FC } from 'react';
 import './Point.css';
-import { Checker } from '../Checker';
+import Checker from '../Checker';
 
 export interface PointProps {
     pointIndex: number;
@@ -39,8 +39,8 @@ export const Point: FC<PointProps> = ({
                     {Array.from({ length: Math.min(absoluteCount, 5) }).map((_, i) => (
                         <Checker
                             key={`checker-${pointIndex}-${i}`}
-                            player={player}
-                            position={{ point: pointIndex, stack: i }}
+                            color={player}
+                            isSelected={false}
                         />
                     ))}
                     {absoluteCount > 5 && (

@@ -874,4 +874,126 @@ export class GameService {
 
     return game;
   }
-}
+
+  static async listAvailableGames(): Promise<GameSummary[]> {
+    const games = await prisma.games.findMany({
+      where: {
+        status: 'WAITING',
+        blackPlayerId: null
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return games.map(game => ({
+      id: game.id,
+      status: game.status.toLowerCase() as GameStatusType,
+      currentPlayer: (game.currentPlayer ?? 'WHITE').toLowerCase() as PlayerColor,
+      cube: buildCubeSnapshot(game),
+      crawford: buildCrawfordState(game, null, DEFAULT_MATCH_RULES), // Simplified for list
+      matchLength: game.matchLength,
+      whiteScore: game.whiteScore,
+      blackScore: game.blackScore
+    }));
+  }
+
+  static async joinGame(gameId: string, userId: string): Promise<GameState> {
+    const game = await prisma.games.findUnique({ where: { id: gameId } });
+    if (!game) throw new AppError('Game not found', 404);
+    if (game.status !== 'WAITING') throw new AppError('Game is not available', 400);
+    if (game.whitePlayerId === userId) throw new AppError('Cannot join your own game', 400);
+
+    const updatedGame = await prisma.games.update({
+      where: { id: gameId },
+      data: {
+        blackPlayerId: userId,
+        status: 'PLAYING',
+        startedAt: new Date()
+      },
+      include: {
+        whitePlayer: true,
+        blackPlayer: true,
+        match: true
+      }
+    });
+
+    emitGameEvent(gameId, 'join', { gameId, userId }, userId);
+
+    return this.getGame(gameId) as Promise<GameState>;
+  }
+
+  static async listUserGames(userId: string): Promise<GameSummary[]> {
+    const games = await prisma.games.findMany({
+      where: {
+        OR: [
+          { whitePlayerId: userId },
+          { blackPlayerId: userId }
+        ]
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    return games.map(game => ({
+      id: game.id,
+      status: game.status.toLowerCase() as GameStatusType,
+      currentPlayer: (game.currentPlayer ?? 'WHITE').toLowerCase() as PlayerColor,
+      cube: buildCubeSnapshot(game),
+      crawford: buildCrawfordState(game, null, DEFAULT_MATCH_RULES),
+      matchLength: game.matchLength,
+      whiteScore: game.whiteScore,
+      blackScore: game.blackScore
+    }));
+  }
+
+  static async getAvailableMoves(gameId: string, userId: string): Promise<Move[]> {
+    const game = await this.getGame(gameId);
+    if (!game) throw new AppError('Game not found', 404);
+
+    const isWhite = game.player1.id === userId;
+    const playerColor: PlayerColor = isWhite ? 'white' : 'black';
+
+    if (game.currentPlayer !== playerColor) return [];
+
+    return BackgammonEngine.calculateAvailableMoves(playerColor, game.board, game.dice);
+  }
+
+  static async getPipCount(gameId: string): Promise<{ white: number; black: number }> {
+    const game = await this.getGame(gameId);
+    if (!game) throw new AppError('Game not found', 404);
+
+    return BackgammonEngine.calculatePipCount(game.board);
+  }
+
+  static async resignGame(gameId: string, userId: string): Promise<GameState> {
+    const game = await this.getGame(gameId);
+    if (!game) throw new AppError('Game not found', 404);
+
+    const isWhite = game.player1.id === userId;
+    const winnerColor: PlayerColor = isWhite ? 'black' : 'white';
+    const winner = winnerColor === 'white' ? game.player1 : game.player2;
+
+    if (!winner) throw new AppError('Opponent not found', 400);
+
+    await prisma.games.update({
+      where: { id: gameId },
+      data: {
+        status: 'COMPLETED',
+        winner: winnerColor === 'white' ? 'WHITE' : 'BLACK',
+        finishedAt: new Date()
+      }
+    });
+
+    emitGameEvent(gameId, 'resign', { userId, winner: winnerColor }, userId);
+
+    return this.getGame(gameId) as Promise<GameState>;
+  }
+
+  static async offerDraw(gameId: string, userId: string): Promise<boolean> {
+    // Simplified draw offer logic
+    const game = await this.getGame(gameId);
+    if (!game) throw new AppError('Game not found', 404);
+
+    // In a real implementation, we would store the draw offer in DB
+    // For now, we'll just emit an event
+    emitGameEvent(gameId, 'draw', { userId }, userId);
+    return true;
+  }

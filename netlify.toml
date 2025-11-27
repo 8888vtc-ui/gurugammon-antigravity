@@ -1,7 +1,6 @@
 [build]
-  publish = "dist"
-  functions = "functions"
-  command = "npm run build"
+  publish = "guru-react/dist"
+  command = "cd guru-react && npm install && npm run build"
 
 # Global CDN optimization
 [[edge_functions]]
@@ -54,10 +53,11 @@
   force = true
 
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
   # Global environment optimizations
   NETLIFY_USE_EDGE_FUNCTIONS = "true"
   NETLIFY_EDGE_FUNCTIONS_REGION = "global"
+  VITE_API_BASE_URL = "https://gurugammon.onrender.com"
 
 [[headers]]
   for = "/api/*"

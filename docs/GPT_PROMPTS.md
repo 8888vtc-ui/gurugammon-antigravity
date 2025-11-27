@@ -169,6 +169,37 @@ Les prompts sont organisés par priorités :
 >
 > **État actuel :** un workflow GitHub Actions a été ajouté dans `.github/workflows/ci.yml`. Il s’exécute sur les pushes et pull requests vers `main` et réalise les étapes suivantes : installation des dépendances backend et frontend, `npm run lint` + `npm test` côté backend, `npm run lint` côté frontend, installation des navigateurs Playwright, exécution des tests E2E (`npm run test:e2e`), puis build du backend (`npm run build`) et du frontend (`npm run build` dans `guru-react`). Le workflow échoue automatiquement si l’une de ces étapes échoue, ce qui bloque l’intégration de code cassé sur la branche principale.
 
+**Prompt 31 – Déploiement Netlify unifié pour `guru-react` (V1)**
+
+> Tu es un assistant "V1" qui travaille **dans ce repo**. Ta mission est de rendre le déploiement du frontend React `guru-react` **simple, fiable et standardisé via Netlify**, en utilisant le backend déjà déployé sur Render (`https://gurugammon.onrender.com`). Procède étape par étape :
+>
+> 1. **Vérifier la configuration API côté React**
+>    - Confirme que `guru-react/src/api/client.ts` utilise `import.meta.env.VITE_API_BASE_URL` comme base et qu’aucune URL `localhost` n’est hard-codée pour la production.
+>    - Garde un fallback raisonnable pour le dev local (ex. `http://localhost:3000`), mais assure-toi qu’en build Netlify ce soit bien `VITE_API_BASE_URL` qui est utilisé.
+>
+> 2. **Standardiser la configuration Netlify**
+>    - Vérifie s’il existe déjà un `netlify.toml` pertinent pour `guru-react`. Sinon, crée-en un adapté.
+>    - Objectif : que Netlify, pour ce projet, exécute `npm run build` **dans `guru-react/`** et publie le dossier `guru-react/dist`.
+>    - Nettoie ou marque comme legacy toute config Netlify qui pointe encore vers l’ancien frontend Vue (`frontend/`).
+>
+> 3. **Variables d’environnement Netlify**
+>    - Documente et configure les variables nécessaires pour le front React :
+>      - `VITE_API_BASE_URL = https://gurugammon.onrender.com` (ou autre URL Render choisie).
+>    - Ajoute ces infos dans `DEPLOYMENT.md` et/ou `docs/PROJECT_STATUS.md` (section Déploiement) en expliquant où les saisir dans l’UI Netlify.
+>
+> 4. **Netlify process de déploiement**
+>    - Décris et/ou scripts le processus Netlify recommandé :
+>      - Déploiement auto via Git : push sur `main` → Netlify pull + build `guru-react` → publication.
+>      - Déploiement manuel via CLI : `npm run build` puis `netlify deploy --prod --dir=dist` lancé dans `guru-react/`.
+>    - Si nécessaire, adapte les scripts `package.json` ou ajoute une section dédiée dans `DEPLOYMENT.md`.
+>
+> 5. **Nettoyage & documentation finale**
+>    - Supprime ou archive les anciens scripts/notes de déploiement qui parlent de l’intégration Vue/bgammon obsolète.
+>    - Mets à jour `docs/PROJECT_STATUS.md` pour refléter clairement :
+>      - L’URL Netlify active pour le frontend React.
+>      - L’URL Render active pour le backend.
+>      - Le flux de déploiement Netlify (quelles commandes, quels dossiers, quelles variables d’env).
+
 ---
 
 ## Conseils d’utilisation

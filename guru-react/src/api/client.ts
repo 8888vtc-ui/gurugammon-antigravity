@@ -1,4 +1,6 @@
-export const API_BASE_URL = 'http://localhost:3000';
+export const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+  'https://gurugammon.onrender.com';
 
 function getAuthToken(): string | null {
   if (typeof window === 'undefined' || typeof localStorage === 'undefined') {

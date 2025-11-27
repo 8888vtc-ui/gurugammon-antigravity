@@ -108,30 +108,30 @@ Health check: `https://gammon-guru-api.onrender.com/health`
 
 ### 2. Build Commands
 ```bash
-cd frontend
+cd guru-react
 npm install
 npm run build
 ```
 
 ### 3. Configuration
-The `netlify.toml` file contains:
-- Build settings
-- SPA routing
-- Security headers
-- API redirects
+Create a `netlify.toml` file in `guru-react/` with the following content:
+```toml
+[build]
+  command = "npm run build"
+  publish = "dist"
+```
 
 ### 4. Environment Variables
-À définir dans Netlify :
+Set in Netlify UI:
 ```bash
-VITE_API_BASE_URL=https://gammon-guru-api.onrender.com
-VITE_WS_BASE_URL=wss://gammon-guru-api.onrender.com
+VITE_API_BASE_URL=https://gurugammon.onrender.com
 ```
 
 ### 5. Deployment Steps
-1. Connect repo to Netlify
-2. Set build command: `npm run build`
-3. Set publish directory: `frontend/dist`
-4. Add environment variables
+1. Connect the GitHub repository to Netlify.
+2. Set the base directory to `guru-react`.
+3. Netlify will automatically detect the `netlify.toml` and build settings.
+4. Add the environment variable `VITE_API_BASE_URL`.
 5. Deploy!
 
 ## 🔌 WebSocket Configuration
@@ -262,7 +262,7 @@ curl /api/ws/stats
 railway logs
 
 # Frontend build test
-cd frontend && npm run build
+cd guru-react && npm run build
 
 # WebSocket test
 node backend/src/tests/quick-websocket-test.js

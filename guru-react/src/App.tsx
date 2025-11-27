@@ -93,7 +93,7 @@ function App() {
 
     if (lastWinnerRef.current === winner) return
 
-    soundService.gameWinSound()
+    soundService.playGameWin()
     lastWinnerRef.current = winner
   }, [gameState.winner])
 
