@@ -116,7 +116,7 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
     }
   }, []);
 
-  useGameSocket(gameId, handleSocketEvent);
+  const { status: connectionStatus, reconnect } = useGameSocket(gameId, handleSocketEvent);
 
   // Charger l'état initial depuis le backend si un gameId est fourni
   useEffect(() => {
@@ -460,6 +460,8 @@ export const useBackgammon = (options?: UseBackgammonOptions) => {
     rollDice,
     handlePointClick,
     requestHint,
-    error
+    error,
+    connectionStatus,
+    reconnect
   };
 };

@@ -10,15 +10,27 @@ import type {
 import { PrismaClient } from '@prisma/client';
 import type { Server } from 'http';
 import { config } from './config';
+// Debug logs
+console.log('[DEBUG] Config loaded');
 import { logger } from './utils/logger';
+console.log('[DEBUG] Logger loaded');
 import { validateEnv } from './utils/validateEnv';
+console.log('[DEBUG] validateEnv loaded');
 
 const hasPgSplitConfig = Boolean(process.env.PGHOST);
 const secretKeys: string[] = ['ACCESS_TOKEN_SECRET', 'REFRESH_TOKEN_SECRET'];
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL);
 const isProductionEnv = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+const isMockDb = process.env.MOCK_DB === 'true' || (!hasDatabaseUrl && config.nodeEnv === 'development');
 
-if (!hasDatabaseUrl && !hasPgSplitConfig) {
+// Set default secrets in Mock Mode if missing
+if (isMockDb) {
+  if (!process.env.ACCESS_TOKEN_SECRET) process.env.ACCESS_TOKEN_SECRET = 'mock-access-secret';
+  if (!process.env.REFRESH_TOKEN_SECRET) process.env.REFRESH_TOKEN_SECRET = 'mock-refresh-secret';
+  logger.info('⚠️  Using Mock Secrets for Development');
+}
+
+if (!hasDatabaseUrl && !hasPgSplitConfig && !isMockDb) {
   const message =
     '[startup] Critical configuration: either DATABASE_URL or PGHOST/PGUSER/PGPASSWORD/PGDATABASE/PGPORT must be set.';
   console.error(message);
@@ -35,7 +47,12 @@ if (hasPgSplitConfig) {
   validateEnv(secretKeys);
   validateEnv(undefined, { allowMissingDatabase: true });
 } else {
-  validateEnv(['DATABASE_URL', ...secretKeys]);
+  // Skip DB validation if Mock DB is active
+  if (!isMockDb) {
+    validateEnv(['DATABASE_URL', ...secretKeys]);
+  } else {
+    validateEnv(secretKeys);
+  }
 }
 
 if (!process.env.DATABASE_URL && hasPgSplitConfig) {
@@ -173,10 +190,42 @@ const metricsMiddleware: RequestHandler = (req: Request, res: Response, next: Ne
   next();
 };
 
-// Initialize Prisma client with connection pooling
-export const prisma = new PrismaClient({
-  log: config.nodeEnv === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
-});
+// Initialize Prisma client with connection pooling or Mock
+let prismaClient: PrismaClient;
+
+if (isMockDb) {
+  logger.warn('⚠️  RUNNING IN MOCK DB MODE - No real database connection');
+
+  // Create a Proxy to mock Prisma Client
+  const mockHandler = {
+    get: (target: any, prop: string) => {
+      if (prop === '$connect') return async () => { };
+      if (prop === '$disconnect') return async () => { };
+      if (prop === '$queryRaw') return async () => [1];
+
+      // Return a function that returns a promise resolving to empty data or success
+      return async (...args: any[]) => {
+        logger.debug(`Mock DB call: ${prop}`, args);
+        if (prop === 'count') return 0;
+        if (prop === 'findUnique') return null;
+        if (prop === 'findFirst') return null;
+        if (prop === 'findMany') return [];
+        if (prop === 'create') return { id: 'mock-id', ...args[0]?.data };
+        if (prop === 'update') return { id: 'mock-id', ...args[0]?.data };
+        if (prop === 'upsert') return { id: 'mock-id', ...args[0]?.create };
+        return null;
+      };
+    }
+  };
+
+  prismaClient = new Proxy({}, mockHandler) as unknown as PrismaClient;
+} else {
+  prismaClient = new PrismaClient({
+    log: config.nodeEnv === 'development' ? ['query', 'info', 'warn', 'error'] : ['error'],
+  });
+}
+
+export const prisma = prismaClient;
 
 const app = express();
 
@@ -240,6 +289,10 @@ app.use(cors({
       return callback(null, true);
     }
 
+    if (/^https:\/\/.*\.netlify\.app$/i.test(origin) || /^https:\/\/.*\.onrender\.com$/i.test(origin)) {
+      return callback(null, true);
+    }
+
     logger.warn(`Blocked CORS origin: ${origin}`);
     return callback(new Error('CORS origin not allowed'));
   },
@@ -253,9 +306,18 @@ app.use(cors({
 
 app.options('*', cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.has(origin)) {
+    if (!origin) {
       return callback(null, true);
     }
+
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    if (/^https:\/\/.*\.netlify\.app$/i.test(origin) || /^https:\/\/.*\.onrender\.com$/i.test(origin)) {
+      return callback(null, true);
+    }
+
     return callback(new Error('CORS origin not allowed'));
   },
   credentials: config.cors.allowCredentials,
@@ -325,7 +387,8 @@ app.get('/health', async (req: Request, res: Response) => {
       database: {
         connected: true,
         users: userCount,
-        games: gameCount
+        games: gameCount,
+        mode: isMockDb ? 'mock' : 'postgres'
       },
       websocket: wsStats || {
         activeConnections: 0,

@@ -38,7 +38,11 @@ const resolveDatabaseUrl = () => {
 };
 
 const defaultAllowedOrigins = ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:5173'];
-const productionDefaultOrigins = ['https://gammon-guru.app', 'https://app.gammonguru.com'];
+const productionDefaultOrigins = [
+  'https://gammon-guru.app',
+  'https://app.gammonguru.com',
+  'https://gurugammon.onrender.com'
+];
 
 const parseOrigins = (raw?: string | null) =>
   raw?.split(',').map(origin => origin.trim()).filter(Boolean) ?? [];

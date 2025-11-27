@@ -11,7 +11,7 @@ import { RegisterForm } from './components/auth/RegisterForm';
 
 function App() {
   const [gameId, setGameId] = useState<string | null>(null)
-  const [isConnected, setIsConnected] = useState(false)
+  // const [isConnected, setIsConnected] = useState(false) // Replaced by connectionStatus
   const [isRollingDice, setIsRollingDice] = useState(false)
   const [hasStarted, setHasStarted] = useState(false)
   const [connectionError, setConnectionError] = useState<string | null>(null)
@@ -46,7 +46,7 @@ function App() {
     // L'utilisateur a choisi un mode : on quitte l'écran de sélection
     setHasStarted(true)
     setConnectionError(null)
-    setIsConnected(false)
+    // setIsConnected(false)
 
     try {
       // Créer une nouvelle partie côté backend (mode en ligne)
@@ -62,7 +62,7 @@ function App() {
       if (newGameId) {
         console.log('Game initialized via API:', newGameId)
         setGameId(String(newGameId))
-        setIsConnected(true)
+        // setIsConnected(true)
         setConnectionError(null)
       } else {
         // Réponse inattendue : on reste en mode local
@@ -70,13 +70,13 @@ function App() {
       }
     } catch (err) {
       console.error('Failed to initialize game via API, falling back to local mode:', err);
-      setIsConnected(false)
+      // setIsConnected(false)
       setConnectionError('Online mode unavailable, playing in local mode.')
     }
   };
 
   // Hook de jeu (API mode si gameId présent, sinon Local)
-  const { gameState, rollDice, handlePointClick, requestHint, error } = useBackgammon({ gameId });
+  const { gameState, rollDice, handlePointClick, requestHint, error, connectionStatus } = useBackgammon({ gameId });
 
   const handleRollClick = async () => {
     if (isRollingDice || gameState.dice.length > 0) return
@@ -183,15 +183,15 @@ function App() {
         <main className="app-main" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
           <h2 style={{ color: 'white', marginBottom: '2rem', fontSize: '2rem' }}>Choose Game Mode</h2>
           <div style={{ display: 'flex', gap: '1rem' }}>
-            <button 
-              className="btn btn-primary" 
+            <button
+              className="btn btn-primary"
               style={{ padding: '1rem 2rem', fontSize: '1.2rem' }}
               onClick={() => startGame('AI_VS_PLAYER')}
             >
               Play vs AI (GNUBG)
             </button>
-            <button 
-              className="btn btn-secondary" 
+            <button
+              className="btn btn-secondary"
               style={{ padding: '1rem 2rem', fontSize: '1.2rem' }}
               onClick={() => startGame('PLAYER_VS_PLAYER')}
             >
@@ -219,9 +219,14 @@ function App() {
         <div className="container flex justify-between items-center">
           <div className="flex items-center gap-lg">
             <h1 className="app-title text-glow-purple">GuruGammon</h1>
-            <div className={`status-badge ${isConnected ? 'status-connected' : 'status-connecting'}`}>
+            <div className={`status-badge ${connectionStatus === 'connected' ? 'status-connected' : connectionStatus === 'reconnecting' ? 'status-reconnecting' : 'status-connecting'}`}>
               <div className="status-dot" />
-              <span>{isConnected ? 'Online (API Mode)' : 'Offline Mode (Local Play)'}</span>
+              <span>
+                {connectionStatus === 'connected' ? 'Online (API Mode)' :
+                  connectionStatus === 'reconnecting' ? 'Reconnecting...' :
+                    connectionStatus === 'connecting' ? 'Connecting...' :
+                      'Offline Mode (Local Play)'}
+              </span>
             </div>
           </div>
           <div className="header-actions">
