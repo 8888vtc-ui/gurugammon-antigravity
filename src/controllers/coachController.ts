@@ -1,3 +1,5 @@
+// src/controllers/coachController.ts
+// FIXED: Added null check for id parameter
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { GameService } from '../services/gameService';
@@ -10,6 +12,7 @@ export class CoachController {
         const userId = (req as any).user?.id;
 
         if (!userId) throw new AppError('Unauthorized', 401);
+        if (!id) throw new AppError('Game ID required', 400);
 
         const game = await GameService.getGame(id);
         if (!game) throw new AppError('Game not found', 404);

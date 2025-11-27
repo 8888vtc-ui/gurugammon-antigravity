@@ -1,7 +1,7 @@
 // src/services/tournamentService.ts
-// FIXED: Added missing methods (joinTournament, leaveTournament, getTournament, etc.)
-// FIXED: Changed undefined to null for Prisma exactOptionalPropertyTypes
-// FIXED: Added null checks for possibly undefined objects
+// FIXED: Changed 'user' to 'users' in Prisma includes
+// FIXED: Changed 'playerLeft' to 'participantLeft' for consistency
+// FIXED: Added proper null handling and undefined checks
 import { prisma } from '../lib/prisma';
 import { broadcastTournamentEvent } from '../websocket/tournamentServer';
 import { AppError } from '../utils/errors';
@@ -92,7 +92,7 @@ export class TournamentService {
       where: { id: participant.id }
     });
 
-    broadcastTournamentEvent(tournamentId, 'playerLeft', { userId });
+    broadcastTournamentEvent(tournamentId, 'participantLeft', { userId });
   }
 
   static async notifyParticipants(params: {
@@ -125,7 +125,7 @@ export class TournamentService {
   static async listParticipants(tournamentId: string) {
     return await prisma.tournament_participants.findMany({
       where: { tournament_id: tournamentId },
-      include: { user: true }
+      include: { users: true }
     });
   }
 
@@ -134,7 +134,7 @@ export class TournamentService {
       where: { tournament_id: tournamentId },
       include: {
         wonMatches: true,
-        user: true
+        users: true
       },
       orderBy: { current_position: 'asc' }
     });
@@ -164,7 +164,7 @@ export class TournamentService {
       where: { id: params.matchId },
       data: {
         winnerParticipantId: params.winnerParticipantId,
-        gameId: params.gameId,
+        gameId: params.gameId ?? null,
         status: 'COMPLETED',
         finishedAt: new Date()
       }
@@ -179,9 +179,9 @@ export class TournamentService {
     const matches = await prisma.tournament_matches.findMany({
       where: { tournamentId },
       include: {
-        white: { include: { user: true } },
-        black: { include: { user: true } },
-        winner: { include: { user: true } }
+        white: { include: { users: true } },
+        black: { include: { users: true } },
+        winner: { include: { users: true } }
       },
       orderBy: [{ round: 'asc' }, { matchNumber: 'asc' }]
     });
@@ -289,7 +289,7 @@ export class TournamentService {
 
         await prisma.games.update({
           where: { id: game.id },
-          data: { tournamentId }
+          data: { tournamentId: tournamentId ?? null }
         });
 
         await prisma.tournament_matches.create({

@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM node:20.11.1 AS build
+FROM node:20.19.0 AS build
 WORKDIR /app
 
 # Copy package files first for better layer caching
@@ -18,7 +18,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Runtime stage
-FROM node:20.11.1-slim AS runtime
+FROM node:20.19.0-slim AS runtime
 WORKDIR /app
 
 # Install runtime dependencies
