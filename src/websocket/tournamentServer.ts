@@ -11,7 +11,8 @@ export type TournamentEventType =
   | 'matchFinished'
   | 'matchStarted'
   | 'tournamentUpdated'
-  | 'tournamentEnded';
+  | 'tournamentEnded'
+  | 'participantLeft';
 
 interface JwtPayload {
   userId: string;
