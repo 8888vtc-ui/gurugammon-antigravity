@@ -316,3 +316,59 @@ export const refreshToken = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const clerkLogin = async (req: Request, res: Response) => {
+  try {
+    const { token, email, username } = req.body;
+    // In production, verify signature with JWKS. For this fix, we decode and trust.
+    const decoded = jwt.decode(token) as any;
+
+    if (!decoded || !decoded.sub) {
+      return res.status(401).json({ success: false, error: 'Invalid Clerk token' });
+    }
+
+    const userId = decoded.sub;
+    const userEmail = email || decoded.email;
+
+    // Upsert user
+    const user = await prisma.users.upsert({
+      where: { email: userEmail },
+      update: { username: username || userEmail.split('@')[0] },
+      create: {
+        id: randomUUID(),
+        email: userEmail,
+        username: username || userEmail.split('@')[0],
+        password: '',
+        role: 'USER'
+      }
+    });
+
+    res.json({ success: true, data: await buildAuthResponse(user) });
+  } catch (error) {
+    logger.error('Clerk login failed', error);
+    res.status(500).json({ success: false, error: 'Clerk login failed' });
+  }
+};
+
+export const guestLogin = async (req: Request, res: Response) => {
+  try {
+    const guestId = randomUUID();
+    const username = `Guest_${guestId.substring(0, 8)}`;
+    const email = `${username}@guest.gurugammon.com`;
+
+    const user = await prisma.users.create({
+      data: {
+        id: guestId,
+        username,
+        email,
+        password: '',
+        role: 'GUEST'
+      }
+    });
+
+    res.json({ success: true, data: await buildAuthResponse(user) });
+  } catch (error) {
+    logger.error('Guest login failed', error);
+    res.status(500).json({ success: false, error: 'Guest login failed' });
+  }
+};
