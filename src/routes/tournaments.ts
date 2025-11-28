@@ -16,18 +16,18 @@ import {
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(authMiddleware as unknown as express.RequestHandler);
 
-router.post('/', createTournament);
-router.post('/:id/join', joinTournament);
-router.post('/:id/leave', leaveTournament);
-router.get('/:id', getTournament);
-router.get('/:id/participants', getTournamentParticipants);
-router.get('/:id/leaderboard', getTournamentLeaderboard);
-router.get('/:id/standings', getTournamentStandings);
-router.get('/:id/bracket', getTournamentBracket);
-router.get('/:id/overview', getTournamentOverview);
-router.post('/:id/start', startTournament);
-router.post('/:id/matches/:matchId/report', reportTournamentMatch);
+router.post('/', createTournament as unknown as express.RequestHandler);
+router.post('/:id/join', joinTournament as unknown as express.RequestHandler);
+router.post('/:id/leave', leaveTournament as unknown as express.RequestHandler);
+router.get('/:id', getTournament as unknown as express.RequestHandler);
+router.get('/:id/participants', getTournamentParticipants as unknown as express.RequestHandler);
+router.get('/:id/leaderboard', getTournamentLeaderboard as unknown as express.RequestHandler);
+router.get('/:id/standings', getTournamentStandings as unknown as express.RequestHandler);
+router.get('/:id/bracket', getTournamentBracket as unknown as express.RequestHandler);
+router.get('/:id/overview', getTournamentOverview as unknown as express.RequestHandler);
+router.post('/:id/start', startTournament as unknown as express.RequestHandler);
+router.post('/:id/matches/:matchId/report', reportTournamentMatch as unknown as express.RequestHandler);
 
 export default router;

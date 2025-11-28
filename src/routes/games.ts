@@ -25,24 +25,24 @@ import { CoachController } from '../controllers/coachController';
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(authMiddleware as unknown as express.RequestHandler);
 
-router.get('/available', listAvailableGames); // Must be before /:gameId routes
-router.post('/', createGameController);
+router.get('/available', listAvailableGames as unknown as express.RequestHandler); // Must be before /:gameId routes
+router.post('/', createGameController as unknown as express.RequestHandler);
 
-router.post('/:gameId/join', joinGame);
-router.post('/:gameId/roll', rollDice);
-router.post('/:gameId/move', makeMove);
-router.post('/:gameId/double', offerDouble);
-router.post('/:gameId/double/respond', respondToDouble);
-router.post('/:gameId/resign', resignGame);
-router.post('/:gameId/draw', offerDraw);
-router.post('/:gameId/suggestions', getSuggestions);
-router.post('/:gameId/evaluate', evaluatePosition);
-router.post('/:gameId/coach', CoachController.getCoachAdvice);
-router.post('/matchmaking/join', joinMatchmakingQueue);
-router.post('/matchmaking/leave', leaveMatchmakingQueue);
-router.get('/matchmaking/status', getMatchmakingStatus);
-router.get('/:gameId/status', getGameStatus);
+router.post('/:gameId/join', joinGame as unknown as express.RequestHandler);
+router.post('/:gameId/roll', rollDice as unknown as express.RequestHandler);
+router.post('/:gameId/move', makeMove as unknown as express.RequestHandler);
+router.post('/:gameId/double', offerDouble as unknown as express.RequestHandler);
+router.post('/:gameId/double/respond', respondToDouble as unknown as express.RequestHandler);
+router.post('/:gameId/resign', resignGame as unknown as express.RequestHandler);
+router.post('/:gameId/draw', offerDraw as unknown as express.RequestHandler);
+router.post('/:gameId/suggestions', getSuggestions as unknown as express.RequestHandler);
+router.post('/:gameId/evaluate', evaluatePosition as unknown as express.RequestHandler);
+router.post('/:gameId/coach', CoachController.getCoachAdvice as unknown as express.RequestHandler);
+router.post('/matchmaking/join', joinMatchmakingQueue as unknown as express.RequestHandler);
+router.post('/matchmaking/leave', leaveMatchmakingQueue as unknown as express.RequestHandler);
+router.get('/matchmaking/status', getMatchmakingStatus as unknown as express.RequestHandler);
+router.get('/:gameId/status', getGameStatus as unknown as express.RequestHandler);
 
 export default router;

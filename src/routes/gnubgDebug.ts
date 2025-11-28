@@ -6,10 +6,10 @@ import { GNUBGRunnerDebug } from '../services/gnubgRunnerDebug';
 const router = express.Router();
 
 // Toutes les routes debug nécessitent une authentification
-router.use(authMiddleware);
+router.use(authMiddleware as unknown as express.RequestHandler);
 
 // Route de debug pour tester GNUBG
-router.post('/test', async (req: AuthRequest, res: any) => {
+router.post('/test', (async (req: AuthRequest, res: any) => {
   try {
     if (!req.user) {
       return res.status(401).json({
@@ -19,7 +19,7 @@ router.post('/test', async (req: AuthRequest, res: any) => {
     }
 
     const result = await GNUBGRunnerDebug.testRawOutput();
-    
+
     res.json({
       success: true,
       data: {
@@ -35,6 +35,6 @@ router.post('/test', async (req: AuthRequest, res: any) => {
       error: error instanceof Error ? error.message : 'Failed to test GNUBG'
     });
   }
-});
+}) as unknown as express.RequestHandler);
 
 export default router;
