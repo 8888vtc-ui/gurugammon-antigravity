@@ -8,6 +8,7 @@ import { Tournaments } from './pages/Tournaments';
 import { TournamentDetail } from './pages/TournamentDetail';
 import { Profile } from './pages/Profile';
 import { AdminPanel } from './pages/Admin';
+import { SsoCallback } from './pages/SsoCallback';
 import { MobileNav } from './components/layout/MobileNav';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
 
@@ -109,6 +110,7 @@ function App() {
                         <Routes>
                             <Route path="/" element={<Landing />} />
                             <Route path="/login" element={<LoginScreen />} />
+                            <Route path="/login/sso-callback" element={<SsoCallback />} />
                             <Route path="/lobby" element={<PrivateRoute><Lobby /></PrivateRoute>} />
                             <Route path="/game/:id" element={<PrivateRoute><Game /></PrivateRoute>} />
                             <Route path="/tournaments" element={<PrivateRoute><Tournaments /></PrivateRoute>} />
