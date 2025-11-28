@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useUser, useAuth, SignIn, UserButton } from '@clerk/clerk-react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useUser, useAuth, SignIn } from '@clerk/clerk-react';
 import { Landing } from './pages/Landing';
 import { Lobby } from './pages/Lobby';
 import { Game } from './pages/Game';
