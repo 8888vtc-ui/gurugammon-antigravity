@@ -116,7 +116,7 @@ export class TournamentService {
       await notificationService.notifyInvitation(userId, {
         source: 'tournament',
         contextId: params.tournamentId,
-        inviterId: null,
+        inviterId: 'SYSTEM',
         inviterUsername: null
       });
     }
@@ -252,18 +252,20 @@ export class TournamentService {
 
     playersWithScores.sort((a, b) => b.score - a.score);
 
-    const pairings: Array<[typeof playersWithScores[0], typeof playersWithScores[0] | null]> = [];
+    type PlayerWithScore = typeof playersWithScores[0];
+    const pairings: Array<[PlayerWithScore, PlayerWithScore | null]> = [];
     const pairedIds = new Set<string>();
 
     for (let i = 0; i < playersWithScores.length; i++) {
-      if (pairedIds.has(playersWithScores[i].id)) continue;
-
       const p1 = playersWithScores[i];
-      let p2 = null;
+      if (!p1 || pairedIds.has(p1.id)) continue;
+
+      let p2: PlayerWithScore | null = null;
 
       for (let j = i + 1; j < playersWithScores.length; j++) {
-        if (!pairedIds.has(playersWithScores[j].id)) {
-          p2 = playersWithScores[j];
+        const candidate = playersWithScores[j];
+        if (candidate && !pairedIds.has(candidate.id)) {
+          p2 = candidate;
           break;
         }
       }

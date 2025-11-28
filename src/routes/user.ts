@@ -7,15 +7,15 @@ import { getDashboard } from '../controllers/userDashboardController';
 const router = express.Router();
 
 // Toutes les routes utilisateur nécessitent une authentification
-router.use(authMiddleware);
+router.use(authMiddleware as unknown as express.RequestHandler);
 
 // GET /api/user/profile - Obtenir son profil
-router.get('/profile', getProfile);
+router.get('/profile', getProfile as unknown as express.RequestHandler);
 
 // PUT /api/user/profile - Mettre à jour son profil
-router.put('/profile', updateProfile);
+router.put('/profile', updateProfile as unknown as express.RequestHandler);
 
 // GET /api/user/dashboard - Tableau de bord complet
-router.get('/dashboard', getDashboard);
+router.get('/dashboard', getDashboard as unknown as express.RequestHandler);
 
 export default router;
