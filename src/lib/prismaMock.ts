@@ -18,7 +18,7 @@ export const createPrismaMock = (): PrismaClient => {
             if (prop === '$queryRaw') return async () => [1];
 
             // Handle nested model access (e.g., prisma.user.create)
-            if (prop === 'user') {
+            if (prop === 'user' || prop === 'users') {
                 return {
                     findUnique: async ({ where }: any) => {
                         const user = Array.from(mockStore.users.values()).find(
@@ -62,17 +62,18 @@ export const createPrismaMock = (): PrismaClient => {
                 };
             }
 
-            // Return a generic mock function for other models
-            return async (...args: any[]) => {
-                logger.debug(`Mock DB call: ${prop}`, args);
-                if (prop === 'count') return 0;
-                if (prop === 'findUnique') return null;
-                if (prop === 'findFirst') return null;
-                if (prop === 'findMany') return [];
-                if (prop === 'create') return { id: 'mock-id', ...args[0]?.data };
-                if (prop === 'update') return { id: 'mock-id', ...args[0]?.data };
-                if (prop === 'upsert') return { id: 'mock-id', ...args[0]?.create };
-                return null;
+            // Return a generic mock model object for other models
+            return {
+                create: async (...args: any[]) => ({ id: 'mock-id', ...args[0]?.data }),
+                update: async (...args: any[]) => ({ id: 'mock-id', ...args[0]?.data }),
+                delete: async () => ({ id: 'mock-id' }),
+                deleteMany: async () => ({ count: 1 }),
+                findFirst: async () => null,
+                findUnique: async () => null,
+                findMany: async () => [],
+                upsert: async (...args: any[]) => ({ id: 'mock-id', ...args[0]?.create }),
+                count: async () => 0,
+                aggregate: async () => ({ _count: 0 })
             };
         }
     };

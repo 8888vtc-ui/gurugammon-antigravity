@@ -11,6 +11,11 @@ export const ddosProtection = (req: Request, res: Response, next: NextFunction) 
         /masscan|nmap/i
     ];
 
+    // Allow tools in development
+    if (process.env.NODE_ENV === 'development' || process.env.MOCK_DB === 'true') {
+        return next();
+    }
+
     // Check for suspicious user agents
     if (suspiciousPatterns.some(pattern => pattern.test(userAgent))) {
         logger.warn(`🚨 Suspicious request blocked: ${clientIP} - ${userAgent}`);

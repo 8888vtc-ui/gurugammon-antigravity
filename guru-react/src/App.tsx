@@ -12,7 +12,7 @@ import { SsoCallback } from './pages/SsoCallback';
 import { MobileNav } from './components/layout/MobileNav';
 import { ErrorBoundary } from './components/layout/ErrorBoundary';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://gurugammon.onrender.com';
+const API_URL = import.meta.env.VITE_API_URL || 'https://gurugammon-antigravity-backend.fly.dev';
 
 const AuthSync = ({ children }: { children: React.ReactNode }) => {
     const { isSignedIn, user } = useUser();

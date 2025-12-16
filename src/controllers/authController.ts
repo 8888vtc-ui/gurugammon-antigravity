@@ -362,7 +362,7 @@ export const guestLogin = async (req: Request, res: Response) => {
         username,
         email,
         password: '',
-        role: 'GUEST'
+        role: 'USER'
       }
     });
 

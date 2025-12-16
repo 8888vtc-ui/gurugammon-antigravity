@@ -16,6 +16,12 @@ if (shouldConstructDatabaseUrl) {
   }
 }
 
-export const prisma = new PrismaClient({
-  log: config.nodeEnv === 'development' ? ['query', 'info', 'warn', 'error'] : ['error']
-});
+import { createPrismaMock } from './prismaMock';
+
+console.log('DEBUG: lib/prisma.ts - MOCK_DB:', process.env.MOCK_DB);
+
+export const prisma = (process.env.MOCK_DB === 'true')
+  ? createPrismaMock()
+  : new PrismaClient({
+    log: config.nodeEnv === 'development' ? ['query', 'info', 'warn', 'error'] : ['error']
+  });
