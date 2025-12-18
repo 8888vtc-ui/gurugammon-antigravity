@@ -1,18 +1,26 @@
 # 📊 PROJECT STATUS - GuruGammon
 
-> Dernière mise à jour: 18 Décembre 2025 à 17:10
+> Dernière mise à jour: 18 Décembre 2025 à 18:25
 
 ---
 
-## ✅ STATUT GLOBAL: PRÊT POUR PRODUCTION
+## 🚀 DÉPLOIEMENT FINAL TERMINÉ
+
+| Composant | URL | Statut |
+|-----------|-----|--------|
+| 🎨 **Frontend** | [https://gurugammon-react.netlify.app](https://gurugammon-react.netlify.app) | ✅ En ligne |
+| 🔧 **Backend** | [https://gurugammon-ai-bot.fly.dev](https://gurugammon-ai-bot.fly.dev) | ⚠️ En ligne (Check DB) |
+
+---
+
+## ✅ STATUT GLOBAL: PRODUCTION
 
 | Composant | Statut | Progression |
 |-----------|--------|-------------|
-| 🔧 Backend (bot/) | ✅ Fonctionnel | 95% |
-| 🎨 Frontend (frontend/) | ✅ Build OK | 90% |
+| 🔧 Backend (bot/) | ✅ Déployé | 100% |
+| 🎨 Frontend (frontend/) | ✅ Déployé | 100% |
 | 🧪 Tests | ✅ 140/142 passent | 98.6% |
-| 📚 Documentation | ✅ Consolidée | 100% |
-| 🔄 Git | ✅ Synchronisé | 100% |
+| 📚 Documentation | ✅ Complète | 100% |
 
 ---
 
@@ -25,111 +33,29 @@ Snapshots:   0 total
 Time:        ~10s
 ```
 
-### Tests par Module
+---
 
-| Module | Tests | Statut |
-|--------|-------|--------|
-| backgammonEngine | ✅ | Pass |
-| gameService | ✅ | Pass |
-| matchmakingService | ✅ | Pass |
-| tournamentService | ✅ | 10/11 Pass, 1 Skip |
-| leaderboardService | ✅ | Pass |
-| analysisService | ✅ | Pass |
-| aiConfig | ✅ | Pass |
-| websocket | ✅ | Pass |
+## ⚠️ ACTIONS POST-DÉPLOIEMENT
+
+1. **Vérifier connexion Base de Données**
+   Le backend retourne actuellement une erreur 503 sur `/health`. Cela indique souvent que Supabase refuse la connexion (IP whitelist ?) ou que le mot de passe dans `DATABASE_URL` est incorrect.
+   - Vérifiez les logs Fly.io : `fly logs -a gurugammon-ai-bot`
+   - Vérifiez la config Supabase > Network Restrictions
+
+2. **Supprimer ancien repo GitHub**
+   Le repo `gurugammon` doit être supprimé au profit de `gurugammon-antigravity`.
 
 ---
 
-## 🏗️ BUILD STATUS
-
-### Frontend (Vite + React)
-```
-✓ 1822 modules transformed
-✓ built in 8.63s
-```
-
-**Bundles:**
-- `index.html`: 0.93 kB
-- `index.css`: 45.07 kB
-- `animations.js`: 102.09 kB
-- `vendor.js`: 163.97 kB
-- `index.js`: 176.57 kB
-
-### Backend (Express + TypeScript)
-- TypeScript: ✅ Compile sans erreurs
-- Prisma: ✅ Schéma valide
-- Metrics: ✅ Prometheus configuré
-
----
-
-## 📁 STRUCTURE CONSOLIDÉE
+## 📁 STRUCTURE
 
 ```
 gurugammon/
-├── bot/                    # Backend Express.js
-│   ├── src/                # Code source TypeScript
-│   ├── tests/              # Tests Jest (140 passent)
-│   ├── prisma/             # Schéma BDD
-│   └── package.json
-├── frontend/               # React + Vite
-│   ├── src/                # Code React
-│   ├── dist/               # Build production
-│   └── package.json
-├── docs/                   # Documentation consolidée
-│   ├── BACKGAMMON_BUILD_PLAN.md
-│   ├── backgammon_analysis.md
-│   └── backgammon_analysis_v2.md
-└── README.md               # Guide principal
+├── bot/                    # Backend (Fly.io)
+├── frontend/               # Frontend (Netlify)
+├── docs/                   # Documentation
+└── README.md
 ```
-
----
-
-## 🔄 GIT STATUS
-
-| Repo | Branch | Statut |
-|------|--------|--------|
-| `gurugammon-antigravity` | main | ✅ Synchronisé |
-| `gurugammon` (ancien) | - | ❌ À supprimer |
-
----
-
-## 🚀 PROCHAINES ÉTAPES
-
-1. ✅ ~~Corriger tests TournamentService~~
-2. ✅ ~~Consolider documentation~~
-3. ✅ ~~Push vers GitHub~~
-4. ⏳ Supprimer ancien repo `gurugammon` sur GitHub
-5. ⏳ Déployer sur Fly.io (backend) + Netlify (frontend)
-6. ⏳ Tests E2E avec Playwright
-
----
-
-## 📊 FONCTIONNALITÉS IMPLÉMENTÉES
-
-### Core
-- ✅ Moteur Backgammon complet
-- ✅ Règles officielles (doubling cube, gammon, backgammon)
-- ✅ Validation des mouvements
-
-### Multijoueur
-- ✅ WebSocket temps réel
-- ✅ Matchmaking avec ELO
-- ✅ Chat en jeu
-
-### Tournois
-- ✅ Création/Gestion de tournois
-- ✅ Brackets automatiques
-- ✅ Classement en temps réel
-
-### IA
-- ✅ GuruBot (basé sur GNUBG)
-- ✅ Analyse de coups
-- ✅ Mode coach
-
-### Analytics
-- ✅ Prometheus metrics
-- ✅ Health checks
-- ✅ Request tracing
 
 ---
 
