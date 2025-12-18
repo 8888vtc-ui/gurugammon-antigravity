@@ -36,3 +36,22 @@ export const tournamentRounds = new Gauge({
   registers: [metricsRegistry]
 });
 
+export const tournamentParticipantsTotal = new Gauge({
+  name: 'tournament_participants_total',
+  help: 'Total participants joined/left',
+  labelNames: ['type'], // 'join' | 'leave'
+  registers: [metricsRegistry]
+});
+
+export const tournamentsStartedTotal = new Counter({
+  name: 'tournaments_started_total',
+  help: 'Total number of tournaments started',
+  registers: [metricsRegistry]
+});
+
+export const tournamentMatchesTotal = new Counter({
+  name: 'tournament_matches_total',
+  help: 'Total tournament matches status changes',
+  labelNames: ['status'], // 'scheduled' | 'auto_advance' | 'completed'
+  registers: [metricsRegistry]
+});

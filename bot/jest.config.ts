@@ -21,6 +21,7 @@ const config: Config = {
     '^@supabase/supabase-js$': '<rootDir>/tests/__mocks__/@supabase/supabase-js.ts'
   },
   testMatch: ['<rootDir>/tests/**/*.(test|spec).ts'],
+  testPathIgnorePatterns: ['/node_modules/', '/tests/e2e/', '/load-tests/'],
   collectCoverage: false,
   clearMocks: true
 };

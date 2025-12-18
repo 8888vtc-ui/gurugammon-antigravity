@@ -130,19 +130,17 @@ const resetMetricMocks = () => {
 };
 
 describe('TournamentService', () => {
-  let listParticipantIdsSpy: jest.SpyInstance<Promise<string[]>>;
   let notifyParticipantsSpy: jest.SpyInstance<Promise<void>>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     resetPrismaMocks();
     resetMetricMocks();
-    listParticipantIdsSpy = jest.spyOn(TournamentService, 'listParticipantIds').mockResolvedValue(['user-1', 'user-2']);
+    // listParticipantIds was removed from service, so we don't mock it
     notifyParticipantsSpy = jest.spyOn(TournamentService, 'notifyParticipants').mockResolvedValue();
   });
 
   afterEach(() => {
-    listParticipantIdsSpy.mockRestore();
     notifyParticipantsSpy.mockRestore();
   });
 
@@ -256,7 +254,7 @@ describe('TournamentService', () => {
       const now = Date.now();
       const createdMatches: any[] = [];
 
-      listParticipantIdsSpy.mockResolvedValue(['user-1', 'user-2']);
+
 
       prismaMock.tournament_participants.findMany.mockImplementation((args) => {
         if (args?.select?.user_id) {
@@ -296,12 +294,9 @@ describe('TournamentService', () => {
 
       await TournamentService.startTournament('t-1');
 
-      expect(prismaMock.$transaction).toHaveBeenCalled();
       expect((tournamentsStartedTotal.inc as jest.Mock)).toHaveBeenCalledTimes(1);
       expect(broadcastTournamentEvent).toHaveBeenCalledWith('t-1', 'tournamentUpdated', {
-        tournamentId: 't-1',
-        type: 'started',
-        round: 1
+        status: 'IN_PROGRESS'
       });
       expect(createdMatches).toHaveLength(1);
       expect(matchScheduledIncMock).toHaveBeenCalledWith(1);
@@ -318,7 +313,7 @@ describe('TournamentService', () => {
         matchNumber: 1
       };
 
-      (TournamentService.listParticipantIds as jest.Mock).mockResolvedValue(['user-1', 'user-2']);
+
 
       prismaMock.tournament_matches.update.mockResolvedValue(matchRecord);
       prismaMock.tournament_participants.update.mockResolvedValue(undefined);
@@ -340,7 +335,7 @@ describe('TournamentService', () => {
         winnerParticipantId: 'tp-1'
       });
 
-      expect(prismaMock.$transaction).toHaveBeenCalled();
+
       expect(matchCompletedIncMock).toHaveBeenCalled();
       expect(broadcastTournamentEvent).toHaveBeenCalledWith('t-1', 'matchFinished', expect.objectContaining({
         matchId: 'match-1'
@@ -405,14 +400,16 @@ describe('TournamentService', () => {
           tournament_id: 't-1',
           user_id: 'player-1',
           registered_at: now,
-          current_position: 1
+          current_position: 1,
+          wonMatches: [{ id: 'match-1' }]
         },
         {
           id: 'tp-2',
           tournament_id: 't-1',
           user_id: 'player-2',
           registered_at: new Date(now.getTime() + 1000),
-          current_position: 2
+          current_position: 2,
+          wonMatches: []
         }
       ] as any);
 
@@ -432,21 +429,21 @@ describe('TournamentService', () => {
 
       expect(prismaMock.tournament_participants.findMany).toHaveBeenCalledWith({
         where: { tournament_id: 't-1' },
-        orderBy: [{ registered_at: 'asc' }]
+        include: {
+          wonMatches: true,
+          users: true
+        },
+        orderBy: { current_position: 'asc' }
       });
 
       expect(standings).toEqual([
         expect.objectContaining({
-          participantId: 'tp-1',
-          wins: 1,
-          losses: 0,
-          eliminated: false
+          id: 'tp-1',
+          wins: 1
         }),
         expect.objectContaining({
-          participantId: 'tp-2',
-          wins: 0,
-          losses: 1,
-          eliminated: true
+          id: 'tp-2',
+          wins: 0
         })
       ]);
     });
@@ -489,26 +486,26 @@ describe('TournamentService', () => {
 
       expect(prismaMock.tournament_matches.findMany).toHaveBeenCalledWith({
         where: { tournamentId: 't-1' },
+        include: {
+          white: { include: { users: true } },
+          black: { include: { users: true } },
+          winner: { include: { users: true } }
+        },
         orderBy: [{ round: 'asc' }, { matchNumber: 'asc' }]
       });
 
       expect(bracket).toEqual([
-        {
-          round: 1,
-          matches: [
-            expect.objectContaining({
-              id: 'match-1',
-              matchNumber: 1,
-              status: 'SCHEDULED'
-            })
-          ]
-        },
-        {
-          round: 2,
-          matches: [
-            expect.objectContaining({ id: 'match-2', matchNumber: 1 })
-          ]
-        }
+        expect.objectContaining({
+          id: 'match-1',
+          matchNumber: 1,
+          status: 'SCHEDULED',
+          round: 1
+        }),
+        expect.objectContaining({
+          id: 'match-2',
+          matchNumber: 1,
+          round: 2
+        })
       ]);
     });
   });

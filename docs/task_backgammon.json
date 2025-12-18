@@ -1,0 +1,8 @@
+{
+    "agent": "architect",
+    "action": "analyze_codebase",
+    "description": "Analyze Backgammon project for bugs and improvements",
+    "data": {
+        "repo": "8888vtc-ui/gurugammon-antigravity"
+    }
+}
