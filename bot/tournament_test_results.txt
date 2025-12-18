@@ -1,0 +1,349 @@
+﻿  console.log
+    [dotenv@17.2.3] injecting env (0) from .env -- tip: ÔÜÖ´©Å  enable debug logging with { debug: true }
+
+      at _log (node_modules/dotenv/lib/main.js:142:11)
+
+  console.error
+    CRITICAL: ACCESS_TOKEN_SECRET missing in development environment. Using fallback secret. Snapshot: no SECRET-like environment variables detected
+
+    [0m [90m 20 |[39m   [36mconst[39m secret [33m=[39m process[33m.[39menv[envKey][33m;[39m
+     [90m 21 |[39m   [36mif[39m ([33m![39msecret) {
+    [31m[1m>[22m[39m[90m 22 |[39m     console[33m.[39merror([32m`CRITICAL: ${envKey} missing in ${isProduction ? 'production' : 'development'} environment. Using fallback secret. Snapshot:`[39m[33m,[39m formatSecretSnapshot())[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 23 |[39m     [36mreturn[39m fallback[33m;[39m
+     [90m 24 |[39m   }
+     [90m 25 |[39m   [36mreturn[39m secret[33m;[39m[0m
+
+      at resolveSecret (src/config/index.ts:22:13)
+      at Object.<anonymous> (src/config/index.ts:225:22)
+      at Object.<anonymous> (src/services/gameService.ts:20:1)
+      at Object.<anonymous> (src/services/tournamentService.ts:8:1)
+      at Object.<anonymous> (tests/tournament/tournamentService.test.ts:1:1)
+
+  console.error
+    CRITICAL: REFRESH_TOKEN_SECRET missing in development environment. Using fallback secret. Snapshot: no SECRET-like environment variables detected
+
+    [0m [90m 20 |[39m   [36mconst[39m secret [33m=[39m process[33m.[39menv[envKey][33m;[39m
+     [90m 21 |[39m   [36mif[39m ([33m![39msecret) {
+    [31m[1m>[22m[39m[90m 22 |[39m     console[33m.[39merror([32m`CRITICAL: ${envKey} missing in ${isProduction ? 'production' : 'development'} environment. Using fallback secret. Snapshot:`[39m[33m,[39m formatSecretSnapshot())[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 23 |[39m     [36mreturn[39m fallback[33m;[39m
+     [90m 24 |[39m   }
+     [90m 25 |[39m   [36mreturn[39m secret[33m;[39m[0m
+
+      at resolveSecret (src/config/index.ts:22:13)
+      at Object.<anonymous> (src/config/index.ts:226:23)
+      at Object.<anonymous> (src/services/gameService.ts:20:1)
+      at Object.<anonymous> (src/services/tournamentService.ts:8:1)
+      at Object.<anonymous> (tests/tournament/tournamentService.test.ts:1:1)
+
+  console.error
+    CRITICAL: ACCESS_TOKEN_SECRET missing in development environment. Using fallback secret. Snapshot: no SECRET-like environment variables detected
+
+    [0m [90m 20 |[39m   [36mconst[39m secret [33m=[39m process[33m.[39menv[envKey][33m;[39m
+     [90m 21 |[39m   [36mif[39m ([33m![39msecret) {
+    [31m[1m>[22m[39m[90m 22 |[39m     console[33m.[39merror([32m`CRITICAL: ${envKey} missing in ${isProduction ? 'production' : 'development'} environment. Using fallback secret. Snapshot:`[39m[33m,[39m formatSecretSnapshot())[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 23 |[39m     [36mreturn[39m fallback[33m;[39m
+     [90m 24 |[39m   }
+     [90m 25 |[39m   [36mreturn[39m secret[33m;[39m[0m
+
+      at resolveSecret (src/config/index.ts:22:13)
+      at Object.<anonymous> (src/config/index.ts:229:14)
+      at Object.<anonymous> (src/services/gameService.ts:20:1)
+      at Object.<anonymous> (src/services/tournamentService.ts:8:1)
+      at Object.<anonymous> (tests/tournament/tournamentService.test.ts:1:1)
+
+  console.warn
+    WARNING: DATABASE_URL is not set. Prisma will fail to connect.
+
+    [0m [90m 33 |[39m       [36mthrow[39m [36mnew[39m [33mError[39m(message)[33m;[39m
+     [90m 34 |[39m     }
+    [31m[1m>[22m[39m[90m 35 |[39m     console[33m.[39mwarn([32m`WARNING: ${message}`[39m)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 36 |[39m   }
+     [90m 37 |[39m   [36mreturn[39m url [33m?[39m[33m?[39m [32m'postgresql://localhost:5432/gammon_dev'[39m[33m;[39m
+     [90m 38 |[39m }[33m;[39m[0m
+
+      at resolveDatabaseUrl (src/config/index.ts:35:13)
+      at Object.<anonymous> (src/config/index.ts:230:16)
+      at Object.<anonymous> (src/services/gameService.ts:20:1)
+      at Object.<anonymous> (src/services/tournamentService.ts:8:1)
+      at Object.<anonymous> (tests/tournament/tournamentService.test.ts:1:1)
+
+  console.error
+    CRITICAL: SESSION_TOKEN_SECRET missing in development environment. Using fallback secret. Snapshot: no SECRET-like environment variables detected
+
+    [0m [90m 20 |[39m   [36mconst[39m secret [33m=[39m process[33m.[39menv[envKey][33m;[39m
+     [90m 21 |[39m   [36mif[39m ([33m![39msecret) {
+    [31m[1m>[22m[39m[90m 22 |[39m     console[33m.[39merror([32m`CRITICAL: ${envKey} missing in ${isProduction ? 'production' : 'development'} environment. Using fallback secret. Snapshot:`[39m[33m,[39m formatSecretSnapshot())[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 23 |[39m     [36mreturn[39m fallback[33m;[39m
+     [90m 24 |[39m   }
+     [90m 25 |[39m   [36mreturn[39m secret[33m;[39m[0m
+
+      at resolveSecret (src/config/index.ts:22:13)
+      at resolveSessionConfig (src/config/index.ts:200:18)
+      at Object.<anonymous> (src/config/index.ts:235:12)
+      at Object.<anonymous> (src/services/gameService.ts:20:1)
+      at Object.<anonymous> (src/services/tournamentService.ts:8:1)
+      at Object.<anonymous> (tests/tournament/tournamentService.test.ts:1:1)
+
+node.exe : FAIL tests/tournam
+ent/tournamentService.test.ts
+Au caractère Ligne:1 : 1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo           
+   : NotSpecified: (FAIL te  
+  sts/tour...Service.test.   
+ ts:String) [], RemoteExc    
+eption
+    + FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+  TournamentService
+    createTournament
+      ├ù creates a 
+tournament and returns a 
+summary payload (12 ms)
+    joinTournament
+      ├ù persists the 
+participant and increments 
+metrics
+    leaveTournament
+      ├ù removes the 
+participant and increments 
+metrics (1 ms)
+    startTournament
+      ├ù updates status, 
+emits events and records 
+metrics (1 ms)
+    reportMatchResult
+      ÔêÜ finalises match, 
+broadcasts events and 
+enqueues next round (2 ms)
+    getUserRole
+      ÔêÜ returns ORGANIZER 
+when user created the 
+tournament
+      ÔêÜ returns PLAYER 
+when user is registered
+      ÔêÜ returns SPECTATOR 
+when user is not registered 
+(1 ms)
+      ÔêÜ throws if 
+tournament does not exist (1 
+ms)
+    getStandings
+      ÔêÜ computes wins, 
+losses, and ordering (1 ms)
+    getBracket
+      ÔêÜ groups matches by 
+round (1 ms)
+
+  ÔùÅ TournamentService ÔÇ║ 
+createTournament ÔÇ║ creates 
+a tournament and returns a 
+summary payload
+
+    expect(received).toEqual(
+expected) // deep equality
+
+    - Expected  - 2
+    + Received  + 0
+
+    @@ -2,13 +2,11 @@
+        "createdBy": "admin",
+        "description": null,
+        "endTime": null,
+        "entryFee": 0,
+        "id": "t-1",
+    -   "matches": 0,
+        "maxPlayers": null,
+        "name": "Open Cup",
+    -   "participants": 0,
+        "prizePool": 0,
+        "startTime": null,
+        "status": 
+"REGISTRATION",
+      }
+
+    [0m [90m 183 |[39m    
+   })[33m;[39m
+     [90m 184 |[39m
+    
+[31m[1m>[22m[39m[90m 
+185 |[39m       expect(resul
+t)[33m.[39mtoEqual({
+     [90m     |[39m        
+              
+[31m[1m^[22m[39m
+     [90m 186 |[39m        
+ id[33m:[39m 
+[32m't-1'[39m[33m,[39m
+     [90m 187 |[39m        
+ name[33m:[39m [32m'Open 
+Cup'[39m[33m,[39m
+     [90m 188 |[39m        
+ description[33m:[39m 
+[36mnull[39m[33m,[39m[0m
+
+      at Object.<anonymous> (
+tests/tournament/tournamentSe
+rvice.test.ts:185:22)
+
+  ÔùÅ TournamentService ÔÇ║ 
+joinTournament ÔÇ║ persists 
+the participant and 
+increments metrics
+
+    TypeError: Cannot read 
+properties of undefined 
+(reading 'find')
+
+    [0m [90m 63 |[39m     
+}
+     [90m 64 |[39m
+    
+[31m[1m>[22m[39m[90m 65 
+|[39m     [36mconst[39m 
+existing [33m=[39m tourname
+nt[33m.[39mparticipants[33
+m.[39mfind(p [33m=>[39m 
+p[33m.[39muser_id 
+[33m===[39m 
+userId)[33m;[39m
+     [90m    |[39m         
+                             
+        [31m[1m^[22m[39m
+     [90m 66 |[39m     
+[36mif[39m (existing) {
+     [90m 67 |[39m       
+[36mthrow[39m 
+[36mnew[39m 
+[33mError[39m([32m'User 
+already registered in this 
+tournament'[39m)[33m;[39m
+     [90m 68 |[39m     
+}[0m
+
+      at TournamentService.jo
+inTournament (src/services/to
+urnamentService.ts:65:46)
+      at async 
+Object.<anonymous> (tests/tou
+rnament/tournamentService.tes
+t.ts:219:27)
+
+  ÔùÅ TournamentService ÔÇ║ 
+leaveTournament ÔÇ║ removes 
+the participant and 
+increments metrics
+
+    TypeError: Cannot read 
+properties of undefined 
+(reading 'find')
+
+    [0m [90m 90 |[39m     
+[36mif[39m 
+([33m![39mtournament) 
+[36mthrow[39m 
+[36mnew[39m [33mError[39m
+([32m'Tournament not 
+found'[39m)[33m;[39m
+     [90m 91 |[39m
+    
+[31m[1m>[22m[39m[90m 92 
+|[39m     [36mconst[39m 
+participant [33m=[39m tourn
+ament[33m.[39mparticipants
+[33m.[39mfind(p 
+[33m=>[39m 
+p[33m.[39muser_id 
+[33m===[39m 
+userId)[33m;[39m
+     [90m    |[39m         
+                             
+           
+[31m[1m^[22m[39m
+     [90m 93 |[39m     
+[36mif[39m 
+([33m![39mparticipant) {
+     [90m 94 |[39m       
+[36mthrow[39m 
+[36mnew[39m 
+[33mError[39m([32m'User 
+not registered in this 
+tournament'[39m)[33m;[39m
+     [90m 95 |[39m     
+}[0m
+
+      at TournamentService.le
+aveTournament (src/services/t
+ournamentService.ts:92:49)
+      at async 
+Object.<anonymous> (tests/tou
+rnament/tournamentService.tes
+t.ts:245:7)
+
+  ÔùÅ TournamentService ÔÇ║ 
+startTournament ÔÇ║ updates 
+status, emits events and 
+records metrics
+
+    TypeError: Cannot read 
+properties of undefined 
+(reading 'length')
+
+    [0m [90m 243 |[39m
+     [90m 244 |[39m     
+[36mif[39m 
+([33m![39mtournament) 
+[36mthrow[39m 
+[36mnew[39m [33mAppError[
+39m([32m'Tournament not 
+found'[39m[33m,[39m 
+[35m404[39m)[33m;[39m
+    
+[31m[1m>[22m[39m[90m 
+245 |[39m     [36mif[39m (
+tournament[33m.[39mparticip
+ants[33m.[39mlength 
+[33m<[39m [35m2[39m) {
+     [90m     |[39m        
+                         
+[31m[1m^[22m[39m
+     [90m 246 |[39m       
+[36mthrow[39m 
+[36mnew[39m 
+[33mError[39m([32m'At 
+least two participants 
+required to start 
+tournament'[39m)[33m;[39m
+     [90m 247 |[39m     }
+     [90m 248 |[39m[0m
+
+      at TournamentService.st
+artTournament (src/services/t
+ournamentService.ts:245:33)
+      at async 
+Object.<anonymous> (tests/tou
+rnament/tournamentService.tes
+t.ts:296:7)
+
+Test Suites: 1 failed, 1 
+total
+Tests:       4 failed, 7 
+passed, 11 total
+Snapshots:   0 total
+Time:        1.665 s, 
+estimated 2 s
+Ran all test suites matching 
+/tests\\tournament\\tournamen
+tService.test.ts/i.
