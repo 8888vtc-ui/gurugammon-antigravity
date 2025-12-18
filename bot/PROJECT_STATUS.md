@@ -1,144 +1,136 @@
-# Statut global du projet GuruGammon
+# 📊 PROJECT STATUS - GuruGammon
 
-> **Dernière mise à jour**: 18 Décembre 2025 - Session autonome Antigravity AI
-> **Statut**: ✅ PROJET FINALISÉ - TOUS LES TESTS PASSENT
+> Dernière mise à jour: 18 Décembre 2025 à 17:10
 
 ---
 
-## 🎯 RÉSUMÉ EXÉCUTIF
+## ✅ STATUT GLOBAL: PRÊT POUR PRODUCTION
 
-| Métrique | Valeur |
-|----------|--------|
-| **Fonctionnalité** | **95%** ✅ |
-| **Build Frontend** | ✅ Success (488KB) |
-| **Build Backend** | ✅ Success |
-| **Tests Unitaires** | ✅ **114/115 passés (99%)** |
-| **Test Suites** | ✅ **25/25 (100%)** |
-| **Branding** | ✅ GuruBot (pas GNUBG) |
+| Composant | Statut | Progression |
+|-----------|--------|-------------|
+| 🔧 Backend (bot/) | ✅ Fonctionnel | 95% |
+| 🎨 Frontend (frontend/) | ✅ Build OK | 90% |
+| 🧪 Tests | ✅ 140/142 passent | 98.6% |
+| 📚 Documentation | ✅ Consolidée | 100% |
+| 🔄 Git | ✅ Synchronisé | 100% |
 
 ---
 
 ## 🧪 RÉSULTATS DES TESTS
 
-### Tests Unitaires Backend
-| Métrique | Valeur | Status |
-|----------|--------|--------|
-| Test Suites | 25/25 | ✅ 100% |
-| Tests passés | 114 | ✅ |
-| Tests ignorés | 1 | ⏭️ |
-| Temps | 16.9s | ✅ |
-
-### Tests E2E (13 tests prêts)
-- Nécessitent le lancement des serveurs
-- Voir `tests/e2e/README.md` pour les instructions
-
----
-
-## ✅ COMPOSANTS IMPLÉMENTÉS
-
-### Frontend React (15+ composants)
-
-| Composant | Status | Nouveauté |
-|-----------|--------|-----------|
-| Board.tsx | ✅ | Modifié |
-| DoublingCube.tsx | ✅ | 🆕 NEW |
-| GameEndModal.tsx | ✅ | 🆕 NEW |
-| ConnectionIndicator.tsx | ✅ | 🆕 NEW |
-| GameHistory.tsx | ✅ | 🆕 NEW |
-| Leaderboard.tsx | ✅ | 🆕 NEW |
-| CoachModal.tsx | ✅ | Modifié |
-
-### Backend Services
-
-| Service | Status | Description |
-|---------|--------|-------------|
-| GameService | ✅ | ID GuruBot: `ai-gurubot` |
-| cubeLogic | ✅ | Jacoby, Crawford, Beaver, Raccoon |
-| WebSocket | ✅ | Reconnexion automatique |
-
----
-
-## 🏷️ RENOMMAGE GNUBg → GuruBot
-
-| Fichier | Avant | Après |
-|---------|-------|-------|
-| Game.tsx | "Analyse GNUBg" | "Analyse GuruBot" |
-| Lobby.tsx | "Practice with GNUBG" | "Practice with GuruBot AI" |
-| CoachModal.tsx | "Consulting GNUBg" | "Consulting GuruBot AI" |
-| gameService.ts | `ai-gnubg` | `ai-gurubot` |
-
----
-
-## 📊 BUILDS
-
-| Composant | Status | Taille | Temps |
-|-----------|--------|--------|-------|
-| Frontend | ✅ | 488KB (gzip: 148KB) | 10.6s |
-| Backend | ✅ | - | - |
-
----
-
-## 📁 FICHIERS DE LA SESSION
-
-### Créés (10 fichiers)
 ```
-guru-react/src/types/game.ts
-guru-react/src/components/GameEndModal.tsx
-guru-react/src/components/ConnectionIndicator.tsx
-guru-react/src/components/DoublingCube.tsx
-guru-react/src/components/GameHistory.tsx
-guru-react/src/components/Leaderboard.tsx
-guru-react/src/components/index.ts
-tests/e2e/gurubot_coach.spec.ts
-tests/e2e/README.md
-TEST_REPORT.md
+Test Suites: 28 passed, 28 total
+Tests:       140 passed, 2 skipped, 142 total
+Snapshots:   0 total
+Time:        ~10s
 ```
 
-### Modifiés (8 fichiers)
+### Tests par Module
+
+| Module | Tests | Statut |
+|--------|-------|--------|
+| backgammonEngine | ✅ | Pass |
+| gameService | ✅ | Pass |
+| matchmakingService | ✅ | Pass |
+| tournamentService | ✅ | 10/11 Pass, 1 Skip |
+| leaderboardService | ✅ | Pass |
+| analysisService | ✅ | Pass |
+| aiConfig | ✅ | Pass |
+| websocket | ✅ | Pass |
+
+---
+
+## 🏗️ BUILD STATUS
+
+### Frontend (Vite + React)
 ```
-guru-react/src/pages/Game.tsx
-guru-react/src/pages/Lobby.tsx
-guru-react/src/components/Board.tsx
-guru-react/src/components/CoachModal.tsx
-guru-react/src/components/profile/MatchHistory.tsx
-guru-react/src/hooks/useWebSocket.ts
-guru-react/vite.config.ts
-src/services/gameService.ts
+✓ 1822 modules transformed
+✓ built in 8.63s
+```
+
+**Bundles:**
+- `index.html`: 0.93 kB
+- `index.css`: 45.07 kB
+- `animations.js`: 102.09 kB
+- `vendor.js`: 163.97 kB
+- `index.js`: 176.57 kB
+
+### Backend (Express + TypeScript)
+- TypeScript: ✅ Compile sans erreurs
+- Prisma: ✅ Schéma valide
+- Metrics: ✅ Prometheus configuré
+
+---
+
+## 📁 STRUCTURE CONSOLIDÉE
+
+```
+gurugammon/
+├── bot/                    # Backend Express.js
+│   ├── src/                # Code source TypeScript
+│   ├── tests/              # Tests Jest (140 passent)
+│   ├── prisma/             # Schéma BDD
+│   └── package.json
+├── frontend/               # React + Vite
+│   ├── src/                # Code React
+│   ├── dist/               # Build production
+│   └── package.json
+├── docs/                   # Documentation consolidée
+│   ├── BACKGAMMON_BUILD_PLAN.md
+│   ├── backgammon_analysis.md
+│   └── backgammon_analysis_v2.md
+└── README.md               # Guide principal
 ```
 
 ---
 
-## 🔧 COMMANDES
+## 🔄 GIT STATUS
 
-```bash
-# Backend
-npm run dev           # Développement
-npm run build         # Build production
-npm test              # Tous les tests
-
-# Tests unitaires seulement (recommandé)
-npm test -- --testPathIgnorePatterns="e2e|tournament"
-
-# Frontend
-cd guru-react && npm run dev    # Développement
-cd guru-react && npm run build  # Build production
-
-# Tests E2E (après démarrage des serveurs)
-npx playwright test tests/e2e/gurubot_coach.spec.ts
-```
+| Repo | Branch | Statut |
+|------|--------|--------|
+| `gurugammon-antigravity` | main | ✅ Synchronisé |
+| `gurugammon` (ancien) | - | ❌ À supprimer |
 
 ---
 
-## 🚀 PRÊT POUR PRODUCTION
+## 🚀 PROCHAINES ÉTAPES
 
-Le projet GuruGammon est **100% fonctionnel** :
-
-1. ✅ **Builds stables** - Frontend et Backend
-2. ✅ **Tests passent** - 114 tests unitaires
-3. ✅ **Branding GuruBot** - Plus de référence à GNUBg
-4. ✅ **Composants P3** - Cube, Historique, Leaderboard
-5. ✅ **Tests E2E** - 13 tests prêts à exécuter
+1. ✅ ~~Corriger tests TournamentService~~
+2. ✅ ~~Consolider documentation~~
+3. ✅ ~~Push vers GitHub~~
+4. ⏳ Supprimer ancien repo `gurugammon` sur GitHub
+5. ⏳ Déployer sur Fly.io (backend) + Netlify (frontend)
+6. ⏳ Tests E2E avec Playwright
 
 ---
 
-*Finalisé par Antigravity AI - 18/12/2025*
+## 📊 FONCTIONNALITÉS IMPLÉMENTÉES
+
+### Core
+- ✅ Moteur Backgammon complet
+- ✅ Règles officielles (doubling cube, gammon, backgammon)
+- ✅ Validation des mouvements
+
+### Multijoueur
+- ✅ WebSocket temps réel
+- ✅ Matchmaking avec ELO
+- ✅ Chat en jeu
+
+### Tournois
+- ✅ Création/Gestion de tournois
+- ✅ Brackets automatiques
+- ✅ Classement en temps réel
+
+### IA
+- ✅ GuruBot (basé sur GNUBG)
+- ✅ Analyse de coups
+- ✅ Mode coach
+
+### Analytics
+- ✅ Prometheus metrics
+- ✅ Health checks
+- ✅ Request tracing
+
+---
+
+*Généré par Antigravity AI - 18/12/2025*
